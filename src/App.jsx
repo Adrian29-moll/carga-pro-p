@@ -380,19 +380,21 @@ function ExerciseEditPanel({ exercise, onSave, onClose }) {
   );
 }
 
-function WeightSlider({ value, onChange, sessions = [], exercise = "" }) {
+function SliderInput({ label, value, onChange, min = 0, max = 100, step = 1, unit = "", sessions = [], exercise = "" }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const inputRef = useRef(null);
   const numVal = parseFloat(value) || 0;
 
   const histMax = sessions.filter(s => s.exercise === exercise).flatMap(s => s.sets.map(x => parseFloat(x.weight) || 0));
-  const sliderMax = Math.max(100, Math.ceil((Math.max(numVal, ...histMax, 0) + 25) / 2.5) * 2.5);
-  const pct = sliderMax > 0 ? Math.min((numVal / sliderMax) * 100, 100) : 0;
+  const sliderMax = unit === "kg"
+    ? Math.max(max, Math.ceil((Math.max(numVal, ...histMax, 0) + 25) / step) * step)
+    : max;
+  const pct = sliderMax > min ? Math.min(((numVal - min) / (sliderMax - min)) * 100, 100) : 0;
 
   function handleSlider(e) {
     const raw = parseFloat(e.target.value);
-    onChange(String(Math.round(raw / 2.5) * 2.5));
+    onChange(String(Math.round(raw / step) * step));
   }
   function startEdit() {
     setDraft(numVal === 0 ? "" : String(numVal));
@@ -401,47 +403,42 @@ function WeightSlider({ value, onChange, sessions = [], exercise = "" }) {
   }
   function commitEdit() {
     const p = parseFloat(draft);
-    if (!isNaN(p) && p >= 0) onChange(String(p));
+    if (!isNaN(p) && p >= min) onChange(String(p));
     setEditing(false);
   }
 
   return (
-    <div style={{ padding: "4px 0 8px" }}>
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "baseline", gap: 6, marginBottom: 14 }}>
+    <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 14, padding: "12px 10px 10px", border: "1px solid rgba(255,255,255,0.09)", display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <div style={{ fontSize: 9, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>{label}</div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 3, marginBottom: 10, minHeight: 40 }}>
         {editing ? (
-          <input ref={inputRef} type="number" step="0.5" value={draft}
+          <input ref={inputRef} type="number" step={step} value={draft}
             onChange={e => setDraft(e.target.value)}
             onBlur={commitEdit}
             onKeyDown={e => e.key === "Enter" && commitEdit()}
-            style={{ width: 100, textAlign: "center", fontSize: 38, fontWeight: 800, color: "#f59e0b", background: "transparent", border: "none", borderBottom: "2px solid #f59e0b", outline: "none", fontFamily: "Syne, sans-serif", padding: "0 4px" }}
+            style={{ width: 70, textAlign: "center", fontSize: 30, fontWeight: 800, color: "#f59e0b", background: "transparent", border: "none", borderBottom: "2px solid #f59e0b", outline: "none", fontFamily: "Syne, sans-serif" }}
           />
         ) : (
-          <button onClick={startEdit} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "baseline", gap: 6, padding: "4px 14px", borderRadius: 10 }}>
-            <span style={{ fontSize: 42, fontWeight: 800, color: numVal ? "#f9fafb" : "#374151", fontFamily: "Syne, sans-serif", lineHeight: 1 }}>{numVal || "—"}</span>
-            <span style={{ fontSize: 15, color: "#64748b", fontWeight: 600 }}>kg</span>
+          <button onClick={startEdit} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "baseline", gap: 3, padding: "2px 6px" }}>
+            <span style={{ fontSize: 34, fontWeight: 800, color: numVal ? "#f9fafb" : "#374151", fontFamily: "Syne, sans-serif", lineHeight: 1 }}>{numVal || "—"}</span>
+            <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>{unit}</span>
           </button>
         )}
       </div>
-
-      {/* Custom slider: native input invisible over visual track+thumb */}
-      <div style={{ position: "relative", height: 40, display: "flex", alignItems: "center", marginBottom: 6 }}>
-        {/* Track background */}
-        <div style={{ position: "absolute", left: 0, right: 0, height: 6, borderRadius: 99, background: "rgba(255,255,255,0.1)", overflow: "hidden", pointerEvents: "none" }}>
-          <div style={{ width: `${pct}%`, height: "100%", background: "linear-gradient(to right, #f59e0b, #f97316)", borderRadius: 99, transition: "width .06s" }} />
-        </div>
-        {/* Thumb */}
-        <div style={{ position: "absolute", left: `calc(${pct}% - 13px)`, width: 26, height: 26, borderRadius: "50%", background: "radial-gradient(circle at 35% 35%, #fbbf24, #f97316)", boxShadow: "0 0 12px rgba(245,158,11,0.6), 0 2px 6px rgba(0,0,0,0.4)", border: "2px solid rgba(255,255,255,0.2)", pointerEvents: "none", transition: "left .06s" }} />
-        {/* Native input on top, invisible */}
-        <input
-          type="range" min={0} max={sliderMax} step={2.5} value={numVal}
-          onChange={handleSlider}
-          style={{ position: "absolute", width: "100%", height: "100%", opacity: 0, cursor: "pointer", margin: 0, padding: 0, WebkitAppearance: "none", appearance: "none" }}
-        />
-      </div>
-
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <span style={{ fontSize: 10, color: "#374151" }}>0 kg</span>
-        <span style={{ fontSize: 10, color: "#374151" }}>{sliderMax} kg</span>
+      <input
+        type="range" min={min} max={sliderMax} step={step} value={numVal}
+        onChange={handleSlider}
+        className="weight-slider"
+        style={{
+          WebkitAppearance: "none", appearance: "none",
+          width: "100%", display: "block",
+          height: 6, borderRadius: 99, outline: "none", cursor: "pointer", marginBottom: 5,
+          background: `linear-gradient(to right, #f59e0b ${pct}%, rgba(255,255,255,0.15) ${pct}%)`,
+        }}
+      />
+      <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+        <span style={{ fontSize: 9, color: "#374151" }}>{min}</span>
+        <span style={{ fontSize: 9, color: "#374151" }}>{sliderMax} {unit}</span>
       </div>
     </div>
   );
@@ -481,12 +478,11 @@ function SetRow({ set, idx, onChange, onRemove, isOnly, sessions = [], exercise 
         {!isOnly && <button onClick={() => onRemove(idx)} style={{ background: "none", border: "none", cursor: "pointer", color: "#4b5563", fontSize: 15, padding: "0 2px" }}>✕</button>}
       </div>
 
-      <div style={{ fontSize: 9, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.8, textAlign: "center" }}>Peso — toca el número para escribir exacto</div>
-      <WeightSlider value={set.weight} onChange={v => onChange(idx, "weight", v)} sessions={sessions} exercise={exercise} />
-
-      <div style={{ marginBottom: 10 }}>
-        <div style={{ fontSize: 9, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 }}>Reps</div>
-        <Stepper value={set.reps} onChange={v => onChange(idx, "reps", v)} step={1} unit="reps" />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+        <SliderInput label="Peso" value={set.weight} onChange={v => onChange(idx, "weight", v)}
+          min={0} max={100} step={2.5} unit="kg" sessions={sessions} exercise={exercise} />
+        <SliderInput label="Reps" value={set.reps} onChange={v => onChange(idx, "reps", v)}
+          min={1} max={30} step={1} unit="reps" />
       </div>
 
       <div>
@@ -667,9 +663,12 @@ export default function App() {
         ::-webkit-scrollbar{width:0}
         ::placeholder{color:rgba(255,255,255,0.25)}
         select option{background:#161d2e;color:#f9fafb}
-        input[type=range]{-webkit-appearance:none;appearance:none}
-        input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:radial-gradient(circle,#f59e0b,#f97316);cursor:pointer;box-shadow:0 0 10px rgba(245,158,11,0.55),0 2px 4px rgba(0,0,0,0.35);border:2px solid rgba(255,255,255,0.15)}
-        input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;background:#f59e0b;cursor:pointer;border:none;box-shadow:0 0 8px rgba(245,158,11,0.5)}
+        .weight-slider{-webkit-appearance:none;appearance:none}
+        .weight-slider::-webkit-slider-runnable-track{-webkit-appearance:none;height:6px;border-radius:99px;background:transparent}
+        .weight-slider::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fbbf24,#f97316);margin-top:-11px;cursor:pointer;box-shadow:0 0 12px rgba(245,158,11,0.65),0 2px 5px rgba(0,0,0,0.4);border:2px solid rgba(255,255,255,0.25)}
+        .weight-slider::-moz-range-track{height:6px;border-radius:99px;background:rgba(255,255,255,0.15)}
+        .weight-slider::-moz-range-progress{height:6px;border-radius:99px;background:#f59e0b}
+        .weight-slider::-moz-range-thumb{width:28px;height:28px;border-radius:50%;background:#f59e0b;cursor:pointer;border:none;box-shadow:0 0 10px rgba(245,158,11,0.6)}
       `}</style>
 
       <div style={{ background: "linear-gradient(135deg, #111827 0%, #0f1729 100%)", padding: "48px 20px 16px", position: "relative", overflow: "hidden" }}>
