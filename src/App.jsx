@@ -141,6 +141,147 @@ function Sparkline({ values }) {
   );
 }
 
+function ExerciseDetailPanel({ exercise, sessions, onClose, onLog }) {
+  const [tab, setTab] = useState("charts");
+  const hist = [...sessions.filter(s => s.exercise === exercise)].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const recent = hist.slice(-10);
+  const volumes = recent.map(s => calcVolume(s.sets));
+  const maxWeights = recent.map(s => Math.max(0, ...s.sets.map(x => parseFloat(x.weight) || 0)));
+  const dates = recent.map(s => formatDate(s.date));
+  const pb = hist.length ? Math.max(0, ...hist.flatMap(s => s.sets.map(x => parseFloat(x.weight) || 0))) : 0;
+  const totalSets = hist.reduce((a, s) => a + s.sets.length, 0);
+
+  function BarChart() {
+    if (!volumes.length) return null;
+    const W = 300, H = 80;
+    const maxV = Math.max(...volumes, 1);
+    const barW = W / volumes.length;
+    return (
+      <svg width="100%" viewBox={`0 0 ${W} ${H + 18}`} style={{ overflow: "visible" }}>
+        {volumes.map((v, i) => {
+          const bh = Math.max(4, (v / maxV) * H);
+          const x = i * barW + 2;
+          const w = barW - 4;
+          const isLast = i === volumes.length - 1;
+          return (
+            <g key={i}>
+              <rect x={x} y={H - bh} width={w} height={bh} rx={3} fill={isLast ? "#f59e0b" : "rgba(255,255,255,0.15)"} />
+              {(i === 0 || isLast) && <text x={x + w / 2} y={H + 13} textAnchor="middle" fontSize={8} fill="#64748b">{dates[i]}</text>}
+            </g>
+          );
+        })}
+      </svg>
+    );
+  }
+
+  function LineChart() {
+    if (maxWeights.length < 2) return null;
+    const W = 300, H = 70;
+    const maxW = Math.max(...maxWeights, 1), minW = Math.min(...maxWeights);
+    const range = maxW - minW || 1;
+    const pts = maxWeights.map((v, i) => [
+      (i / (maxWeights.length - 1)) * W,
+      H - ((v - minW) / range) * (H - 12) - 6,
+    ]);
+    const line = pts.map(([x, y]) => `${x},${y}`).join(" ");
+    const area = `M${pts[0][0]},${H} ${pts.map(([x, y]) => `L${x},${y}`).join(" ")} L${pts.at(-1)[0]},${H} Z`;
+    return (
+      <svg width="100%" viewBox={`0 0 ${W} ${H + 18}`} style={{ overflow: "visible" }}>
+        <defs>
+          <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+        <path d={area} fill="url(#ag)" />
+        <polyline points={line} fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        {pts.map(([x, y], i) => <circle key={i} cx={x} cy={y} r={i === pts.length - 1 ? 4 : 2.5} fill={i === pts.length - 1 ? "#f59e0b" : "rgba(245,158,11,0.5)"} />)}
+        {[0, maxWeights.length - 1].map(i => (
+          <text key={i} x={pts[i][0]} y={H + 13} textAnchor={i === 0 ? "start" : "end"} fontSize={8} fill="#64748b">{dates[i]}</text>
+        ))}
+        <text x={pts.at(-1)[0]} y={pts.at(-1)[1] - 8} textAnchor="end" fontSize={9} fill="#f59e0b" fontWeight="700">{maxWeights.at(-1)} kg</text>
+      </svg>
+    );
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)" }} />
+      <div style={{ position: "relative", background: "linear-gradient(160deg, #1c2840 0%, #111827 100%)", borderRadius: "24px 24px 0 0", maxHeight: "88vh", display: "flex", flexDirection: "column", animation: "slideUp .28s cubic-bezier(.32,.72,0,1)", border: "1px solid rgba(255,255,255,0.1)", borderBottom: "none" }}>
+        <div style={{ display: "flex", justifyContent: "center", padding: "14px 0 8px", flexShrink: 0 }}>
+          <div style={{ width: 40, height: 4, borderRadius: 99, background: "rgba(255,255,255,0.15)" }} />
+        </div>
+        <div style={{ padding: "0 20px 12px", flexShrink: 0 }}>
+          <div style={{ fontSize: 9, color: "#f59e0b", fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 }}>Ejercicio</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", fontFamily: "Syne, sans-serif", marginBottom: 14 }}>{exercise}</div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+            {[["Sesiones", hist.length], ["PB", pb > 0 ? pb + " kg" : "—"], ["Series tot.", totalSets]].map(([label, value]) => (
+              <div key={label} style={{ flex: 1, background: "rgba(255,255,255,0.06)", borderRadius: 12, padding: "10px 8px", border: "1px solid rgba(255,255,255,0.08)", textAlign: "center" }}>
+                <div style={{ fontSize: 9, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 }}>{label}</div>
+                <div style={{ fontSize: 17, fontWeight: 800, color: "#f9fafb" }}>{value}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", background: "rgba(255,255,255,0.06)", borderRadius: 12, padding: 4, gap: 4 }}>
+            {[["charts", "Gráficas"], ["history", "Historial"]].map(([id, label]) => (
+              <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "8px", borderRadius: 9, border: "none", cursor: "pointer", background: tab === id ? "#f59e0b" : "transparent", color: tab === id ? "#111" : "#64748b", fontSize: 12, fontWeight: 700, transition: "all .15s" }}>{label}</button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ flex: 1, overflowY: "auto", padding: "0 20px" }}>
+          {tab === "charts" && (
+            recent.length < 2
+              ? <div style={{ textAlign: "center", padding: "40px 0", color: "#64748b" }}><div style={{ fontSize: 36, marginBottom: 10 }}>📊</div><div style={{ fontSize: 13 }}>Necesitas al menos 2 sesiones para ver gráficas</div></div>
+              : <>
+                  <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "14px 16px", marginBottom: 12, border: "1px solid rgba(255,255,255,0.07)" }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>Volumen por sesión</div>
+                    <BarChart />
+                    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
+                      <span style={{ fontSize: 10, color: "#f59e0b", fontWeight: 700 }}>Última: {volumes.at(-1)?.toFixed(0)} kg·reps</span>
+                    </div>
+                  </div>
+                  <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "14px 16px", marginBottom: 12, border: "1px solid rgba(255,255,255,0.07)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 1 }}>Peso máximo</div>
+                      <div style={{ fontSize: 10, color: "#64748b" }}>Mín {Math.min(...maxWeights)} · Máx {Math.max(...maxWeights)} kg</div>
+                    </div>
+                    <LineChart />
+                  </div>
+                </>
+          )}
+          {tab === "history" && (
+            hist.length === 0
+              ? <div style={{ textAlign: "center", padding: "40px 0", color: "#64748b" }}><div style={{ fontSize: 36, marginBottom: 10 }}>🏋</div><div style={{ fontSize: 13 }}>Sin sesiones registradas</div></div>
+              : [...hist].reverse().map(s => (
+                  <div key={s.id} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: "12px 14px", marginBottom: 8, border: "1px solid rgba(255,255,255,0.07)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#f9fafb" }}>{formatDate(s.date)}</span>
+                      <span style={{ fontSize: 11, color: "#64748b" }}>{calcVolume(s.sets).toFixed(0)} kg vol.</span>
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {s.sets.map((x, si) => (
+                        <span key={si} style={{ background: "rgba(255,255,255,0.08)", borderRadius: 8, padding: "4px 10px", fontSize: 12, fontWeight: 600, color: "#e5e7eb" }}>
+                          {x.weight} × {x.reps}{x.rir !== undefined ? <span style={{ color: "#64748b" }}> R{x.rir}</span> : ""}
+                        </span>
+                      ))}
+                    </div>
+                    {s.notes && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 6, fontStyle: "italic" }}>{s.notes}</div>}
+                  </div>
+                ))
+          )}
+        </div>
+
+        <div style={{ padding: "12px 20px 36px", flexShrink: 0 }}>
+          <button onClick={() => { onLog(exercise); onClose(); }} style={{ width: "100%", padding: 15, borderRadius: 14, border: "none", background: "linear-gradient(135deg, #f59e0b, #f97316)", color: "#111827", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+            + Registrar sesión
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AIPanel({ exercise, sessions, onClose }) {
   const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
@@ -239,6 +380,73 @@ function ExerciseEditPanel({ exercise, onSave, onClose }) {
   );
 }
 
+function WeightSlider({ value, onChange, sessions = [], exercise = "" }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const inputRef = useRef(null);
+  const numVal = parseFloat(value) || 0;
+
+  const histMax = sessions.filter(s => s.exercise === exercise).flatMap(s => s.sets.map(x => parseFloat(x.weight) || 0));
+  const sliderMax = Math.max(100, Math.ceil((Math.max(numVal, ...histMax, 0) + 25) / 2.5) * 2.5);
+  const pct = sliderMax > 0 ? Math.min((numVal / sliderMax) * 100, 100) : 0;
+
+  function handleSlider(e) {
+    const raw = parseFloat(e.target.value);
+    onChange(String(Math.round(raw / 2.5) * 2.5));
+  }
+  function startEdit() {
+    setDraft(numVal === 0 ? "" : String(numVal));
+    setEditing(true);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }
+  function commitEdit() {
+    const p = parseFloat(draft);
+    if (!isNaN(p) && p >= 0) onChange(String(p));
+    setEditing(false);
+  }
+
+  return (
+    <div style={{ padding: "4px 0 8px" }}>
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "baseline", gap: 6, marginBottom: 14 }}>
+        {editing ? (
+          <input ref={inputRef} type="number" step="0.5" value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onBlur={commitEdit}
+            onKeyDown={e => e.key === "Enter" && commitEdit()}
+            style={{ width: 100, textAlign: "center", fontSize: 38, fontWeight: 800, color: "#f59e0b", background: "transparent", border: "none", borderBottom: "2px solid #f59e0b", outline: "none", fontFamily: "Syne, sans-serif", padding: "0 4px" }}
+          />
+        ) : (
+          <button onClick={startEdit} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "baseline", gap: 6, padding: "4px 14px", borderRadius: 10 }}>
+            <span style={{ fontSize: 42, fontWeight: 800, color: numVal ? "#f9fafb" : "#374151", fontFamily: "Syne, sans-serif", lineHeight: 1 }}>{numVal || "—"}</span>
+            <span style={{ fontSize: 15, color: "#64748b", fontWeight: 600 }}>kg</span>
+          </button>
+        )}
+      </div>
+
+      {/* Custom slider: native input invisible over visual track+thumb */}
+      <div style={{ position: "relative", height: 40, display: "flex", alignItems: "center", marginBottom: 6 }}>
+        {/* Track background */}
+        <div style={{ position: "absolute", left: 0, right: 0, height: 6, borderRadius: 99, background: "rgba(255,255,255,0.1)", overflow: "hidden", pointerEvents: "none" }}>
+          <div style={{ width: `${pct}%`, height: "100%", background: "linear-gradient(to right, #f59e0b, #f97316)", borderRadius: 99, transition: "width .06s" }} />
+        </div>
+        {/* Thumb */}
+        <div style={{ position: "absolute", left: `calc(${pct}% - 13px)`, width: 26, height: 26, borderRadius: "50%", background: "radial-gradient(circle at 35% 35%, #fbbf24, #f97316)", boxShadow: "0 0 12px rgba(245,158,11,0.6), 0 2px 6px rgba(0,0,0,0.4)", border: "2px solid rgba(255,255,255,0.2)", pointerEvents: "none", transition: "left .06s" }} />
+        {/* Native input on top, invisible */}
+        <input
+          type="range" min={0} max={sliderMax} step={2.5} value={numVal}
+          onChange={handleSlider}
+          style={{ position: "absolute", width: "100%", height: "100%", opacity: 0, cursor: "pointer", margin: 0, padding: 0, WebkitAppearance: "none", appearance: "none" }}
+        />
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <span style={{ fontSize: 10, color: "#374151" }}>0 kg</span>
+        <span style={{ fontSize: 10, color: "#374151" }}>{sliderMax} kg</span>
+      </div>
+    </div>
+  );
+}
+
 function Stepper({ value, onChange, step, min, unit }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -264,24 +472,23 @@ function Stepper({ value, onChange, step, min, unit }) {
 }
 
 const RIR_OPTIONS = ["0", "1", "2", "3", "4+"];
-function SetRow({ set, idx, onChange, onRemove, isOnly }) {
+function SetRow({ set, idx, onChange, onRemove, isOnly, sessions = [], exercise = "" }) {
   return (
-    <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "10px 12px", marginBottom: 8, border: "1.5px solid rgba(255,255,255,0.09)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+    <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "10px 14px 12px", marginBottom: 8, border: "1.5px solid rgba(255,255,255,0.09)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
         <div style={{ width: 24, height: 24, borderRadius: 7, background: "rgba(245,158,11,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "#f59e0b", flexShrink: 0, border: "1px solid rgba(245,158,11,0.3)" }}>{idx + 1}</div>
         <span style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", flex: 1 }}>Serie {idx + 1}</span>
         {!isOnly && <button onClick={() => onRemove(idx)} style={{ background: "none", border: "none", cursor: "pointer", color: "#4b5563", fontSize: 15, padding: "0 2px" }}>✕</button>}
       </div>
-      <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 9, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 }}>Peso</div>
-          <Stepper value={set.weight} onChange={v => onChange(idx, "weight", v)} step={2.5} unit="kg" />
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 9, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 }}>Reps</div>
-          <Stepper value={set.reps} onChange={v => onChange(idx, "reps", v)} step={1} unit="reps" />
-        </div>
+
+      <div style={{ fontSize: 9, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.8, textAlign: "center" }}>Peso — toca el número para escribir exacto</div>
+      <WeightSlider value={set.weight} onChange={v => onChange(idx, "weight", v)} sessions={sessions} exercise={exercise} />
+
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ fontSize: 9, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 }}>Reps</div>
+        <Stepper value={set.reps} onChange={v => onChange(idx, "reps", v)} step={1} unit="reps" />
       </div>
+
       <div>
         <div style={{ fontSize: 9, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 6 }}>RIR (reps en reserva)</div>
         <div style={{ display: "flex", gap: 6 }}>
@@ -342,6 +549,7 @@ export default function App() {
   const [dragOver, setDragOver] = useState(null);
   const [editingDaySession, setEditingDaySession] = useState(null);
   const [weekOverrides, setWeekOverrides] = useState(() => { try { return JSON.parse(localStorage.getItem(OVERRIDES_KEY) || "{}"); } catch { return {}; } });
+  const [detailExercise, setDetailExercise] = useState(null);
 
   useEffect(() => { saveData(data); }, [data]);
   useEffect(() => { saveRoutine(routine); }, [routine]);
@@ -459,6 +667,9 @@ export default function App() {
         ::-webkit-scrollbar{width:0}
         ::placeholder{color:rgba(255,255,255,0.25)}
         select option{background:#161d2e;color:#f9fafb}
+        input[type=range]{-webkit-appearance:none;appearance:none}
+        input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:radial-gradient(circle,#f59e0b,#f97316);cursor:pointer;box-shadow:0 0 10px rgba(245,158,11,0.55),0 2px 4px rgba(0,0,0,0.35);border:2px solid rgba(255,255,255,0.15)}
+        input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;background:#f59e0b;cursor:pointer;border:none;box-shadow:0 0 8px rgba(245,158,11,0.5)}
       `}</style>
 
       <div style={{ background: "linear-gradient(135deg, #111827 0%, #0f1729 100%)", padding: "48px 20px 16px", position: "relative", overflow: "hidden" }}>
@@ -530,7 +741,7 @@ export default function App() {
                 return (
                   <div key={exName} style={{ background: "linear-gradient(145deg, #1c2840 0%, #111827 100%)", borderRadius: 18, padding: "14px 14px 12px", border: "1px solid rgba(245,158,11,0.12)", display: "flex", flexDirection: "column", gap: 8 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: "#f9fafb", lineHeight: 1.3, maxWidth: "70%" }}>{exName}</div>
+                      <div onClick={() => setDetailExercise(exName)} style={{ fontSize: 12, fontWeight: 700, color: "#f9fafb", lineHeight: 1.3, maxWidth: "70%", cursor: "pointer" }}>{exName}</div>
                       {trend && <span style={{ fontSize: 14, fontWeight: 900, color: trend === "↑" ? "#4ade80" : trend === "↓" ? "#f87171" : "#64748b" }}>{trend}</span>}
                     </div>
                     {dayLabel && <div style={{ fontSize: 9, color: "#f59e0b", fontWeight: 700, textTransform: "uppercase" }}>{dayLabel}</div>}
@@ -624,7 +835,9 @@ export default function App() {
                 <SetRow key={i} set={s} idx={i}
                   onChange={(i, f, v) => { const n = [...sets]; n[i] = { ...n[i], [f]: v }; setSets(n); }}
                   onRemove={i => setSets(sets.filter((_, j) => j !== i))}
-                  isOnly={sets.length === 1} />
+                  isOnly={sets.length === 1}
+                  sessions={data.sessions}
+                  exercise={logExercise} />
               ))}
               <button onClick={() => setSets([...sets, { weight: "", reps: "", rir: undefined }])} style={{ width: "100%", padding: 10, borderRadius: 12, border: "1.5px dashed rgba(255,255,255,0.15)", background: "none", color: "#64748b", fontSize: 13, cursor: "pointer", marginTop: 4, marginBottom: 16 }}>+ Anadir serie</button>
               <label style={lbl}>Notas</label>
@@ -757,7 +970,7 @@ export default function App() {
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                               <div style={{ flex: 1 }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                                  <span style={{ fontSize: 14, fontWeight: 700, color: "#f9fafb" }}>{ex.name}</span>
+                                  <span onClick={() => setDetailExercise(ex.name)} style={{ fontSize: 14, fontWeight: 700, color: "#f9fafb", cursor: "pointer", textDecoration: "underline", textDecorationColor: "rgba(255,255,255,0.15)", textUnderlineOffset: 3 }}>{ex.name}</span>
                                   {ex.anchor && <span style={{ background: "#f59e0b", color: "#111", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 99, textTransform: "uppercase", letterSpacing: .5 }}>Ancla</span>}
                                 </div>
                                 {ex.note && <div style={{ fontSize: 11, color: "#64748b", marginTop: 3, fontStyle: "italic" }}>{ex.note}</div>}
@@ -910,6 +1123,7 @@ export default function App() {
         return <ExerciseEditPanel exercise={routine[dayIdx].blocks[blockIdx].exercises[exIdx]} onSave={saveExerciseEdit} onClose={() => setEditingExercise(null)} />;
       })()}
 
+      {detailExercise && <ExerciseDetailPanel exercise={detailExercise} sessions={data.sessions} onClose={() => setDetailExercise(null)} onLog={(ex) => { openLog(ex); }} />}
       {aiExercise && <AIPanel exercise={aiExercise} sessions={data.sessions} onClose={() => setAiExercise(null)} />}
 
       {toast && (
