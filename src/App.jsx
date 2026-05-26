@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 const STORAGE_KEY = "gym_tracker_v2";
 const ROUTINE_KEY = "gym_routine_v1";
 const OVERRIDES_KEY = "gym_week_overrides";
+const TEMPLATES_KEY = "gym_templates_v1";
 
 const DEFAULT_ROUTINE = [
   { day: "Lun", label: "Push A", sub: "Fuerza pectoral", duration: "~60 min", blocks: [
@@ -380,30 +381,120 @@ function ExerciseEditPanel({ exercise, onSave, onClose }) {
   );
 }
 
+function TemplateEditorPanel({ template, allExercises, onSave, onDelete, onClose }) {
+  const [form, setForm] = useState({ ...template, blocks: JSON.parse(JSON.stringify(template.blocks || [])) });
+  const [newExInput, setNewExInput] = useState(() => (template.blocks || []).map(() => ""));
+  const isNew = !template.name;
+
+  function addBlock() {
+    setForm(f => ({ ...f, blocks: [...f.blocks, { name: "Bloque " + (f.blocks.length + 1), exercises: [] }] }));
+    setNewExInput(prev => [...prev, ""]);
+  }
+  function removeBlock(bi) {
+    setForm(f => ({ ...f, blocks: f.blocks.filter((_, i) => i !== bi) }));
+    setNewExInput(prev => prev.filter((_, i) => i !== bi));
+  }
+  function updateBlockName(bi, name) {
+    setForm(f => { const blocks = JSON.parse(JSON.stringify(f.blocks)); blocks[bi].name = name; return { ...f, blocks }; });
+  }
+  function addExercise(bi) {
+    const name = (newExInput[bi] || "").trim();
+    if (!name) return;
+    setForm(f => { const blocks = JSON.parse(JSON.stringify(f.blocks)); blocks[bi].exercises.push({ name, sets: 3, reps: "8-12", rpe: "7", rest: "90 s" }); return { ...f, blocks }; });
+    setNewExInput(prev => { const n = [...prev]; n[bi] = ""; return n; });
+  }
+  function removeExercise(bi, ei) {
+    setForm(f => { const blocks = JSON.parse(JSON.stringify(f.blocks)); blocks[bi].exercises.splice(ei, 1); return { ...f, blocks }; });
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 250, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)" }} />
+      <div style={{ position: "relative", background: "linear-gradient(160deg, #1c2840 0%, #111827 100%)", borderRadius: "24px 24px 0 0", maxHeight: "92vh", display: "flex", flexDirection: "column", animation: "slideUp .28s cubic-bezier(.32,.72,0,1)", border: "1px solid rgba(255,255,255,0.1)", borderBottom: "none" }}>
+        <div style={{ display: "flex", justifyContent: "center", padding: "14px 0 8px", flexShrink: 0 }}>
+          <div style={{ width: 40, height: 4, borderRadius: 99, background: "rgba(255,255,255,0.15)" }} />
+        </div>
+        <div style={{ padding: "0 20px 12px", flexShrink: 0 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "#f59e0b", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 8 }}>
+            {isNew ? "Nueva plantilla" : "Editar plantilla"}
+          </div>
+          <input placeholder="Nombre (ej. Torso, Full Body...)" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={{ ...fld, marginBottom: 8 }} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <input placeholder="Subtítulo opcional" value={form.sub || ""} onChange={e => setForm(f => ({ ...f, sub: e.target.value }))} style={{ ...fld, flex: 1 }} />
+            <input placeholder="Duración" value={form.duration || ""} onChange={e => setForm(f => ({ ...f, duration: e.target.value }))} style={{ ...fld, flex: 1 }} />
+          </div>
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", padding: "0 20px 12px" }}>
+          {form.blocks.map((block, bi) => (
+            <div key={bi} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "12px 14px", marginBottom: 10, border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <input value={block.name} onChange={e => updateBlockName(bi, e.target.value)} style={{ flex: 1, background: "transparent", border: "none", borderBottom: "1px solid rgba(255,255,255,0.15)", color: "#f9fafb", fontSize: 13, fontWeight: 700, outline: "none", paddingBottom: 3 }} />
+                <button onClick={() => removeBlock(bi)} style={{ background: "none", border: "none", color: "#4b5563", fontSize: 18, cursor: "pointer" }}>✕</button>
+              </div>
+              {block.exercises.map((ex, ei) => (
+                <div key={ei} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                  <span style={{ fontSize: 13, color: "#e5e7eb" }}>{ex.name}</span>
+                  <button onClick={() => removeExercise(bi, ei)} style={{ background: "none", border: "none", color: "#4b5563", fontSize: 14, cursor: "pointer" }}>✕</button>
+                </div>
+              ))}
+              <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                <input list={`exlist-${bi}`} placeholder="Añadir ejercicio..." value={newExInput[bi] || ""} onChange={e => setNewExInput(prev => { const n = [...prev]; n[bi] = e.target.value; return n; })} onKeyDown={e => e.key === "Enter" && addExercise(bi)} style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#fff", fontSize: 13, outline: "none" }} />
+                <datalist id={`exlist-${bi}`}>{allExercises.map(ex => <option key={ex} value={ex} />)}</datalist>
+                <button onClick={() => addExercise(bi)} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "rgba(245,158,11,0.2)", color: "#f59e0b", fontSize: 18, fontWeight: 700, cursor: "pointer" }}>+</button>
+              </div>
+            </div>
+          ))}
+          <button onClick={addBlock} style={{ width: "100%", padding: 10, borderRadius: 12, border: "1.5px dashed rgba(255,255,255,0.15)", background: "none", color: "#64748b", fontSize: 13, cursor: "pointer", marginBottom: 10 }}>+ Añadir bloque</button>
+        </div>
+        <div style={{ padding: "8px 20px 36px", flexShrink: 0 }}>
+          <button onClick={() => { if (!form.name.trim()) return; onSave(form); }} style={{ width: "100%", padding: 15, borderRadius: 14, border: "none", background: form.name.trim() ? "linear-gradient(135deg, #f59e0b, #f97316)" : "rgba(255,255,255,0.08)", color: form.name.trim() ? "#111827" : "#4b5563", fontSize: 15, fontWeight: 700, cursor: "pointer", marginBottom: 8 }}>
+            {isNew ? "Crear plantilla" : "Guardar cambios"}
+          </button>
+          {!isNew && (
+            <button onClick={() => onDelete(form.id)} style={{ width: "100%", padding: 12, borderRadius: 14, border: "1.5px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)", color: "#f87171", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              Eliminar plantilla
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SliderInput({ label, value, onChange, min = 0, max = 100, step = 1, unit = "", sessions = [], exercise = "" }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const [localVal, setLocalVal] = useState(() => parseFloat(value) || 0);
   const inputRef = useRef(null);
-  const numVal = parseFloat(value) || 0;
+
+  // Sync when value changes externally (e.g. "Copiar ultima")
+  useEffect(() => { setLocalVal(parseFloat(value) || 0); }, [value]);
 
   const histMax = sessions.filter(s => s.exercise === exercise).flatMap(s => s.sets.map(x => parseFloat(x.weight) || 0));
   const sliderMax = unit === "kg"
-    ? Math.max(max, Math.ceil((Math.max(numVal, ...histMax, 0) + 25) / step) * step)
+    ? Math.min(200, Math.max(max, Math.ceil((Math.max(localVal, ...histMax, 0) + 25) / step) * step))
     : max;
-  const pct = sliderMax > min ? Math.min(((numVal - min) / (sliderMax - min)) * 100, 100) : 0;
+  const pct = sliderMax > min ? Math.min(((localVal - min) / (sliderMax - min)) * 100, 100) : 0;
 
+  // Durante el drag solo actualiza estado local → sin re-render del padre → sin ruido
   function handleSlider(e) {
-    const raw = parseFloat(e.target.value);
-    onChange(String(Math.round(raw / step) * step));
+    setLocalVal(Math.round(parseFloat(e.target.value) / step) * step);
   }
+  // Al soltar confirma al padre
+  function commitSlider(e) {
+    const v = Math.round(parseFloat(e.target.value) / step) * step;
+    setLocalVal(v);
+    onChange(String(v));
+  }
+
   function startEdit() {
-    setDraft(numVal === 0 ? "" : String(numVal));
+    setDraft(localVal === 0 ? "" : String(localVal));
     setEditing(true);
     setTimeout(() => inputRef.current?.focus(), 50);
   }
   function commitEdit() {
     const p = parseFloat(draft);
-    if (!isNaN(p) && p >= min) onChange(String(p));
+    if (!isNaN(p) && p >= min) { setLocalVal(p); onChange(String(p)); }
     setEditing(false);
   }
 
@@ -420,14 +511,16 @@ function SliderInput({ label, value, onChange, min = 0, max = 100, step = 1, uni
           />
         ) : (
           <button onClick={startEdit} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "baseline", gap: 3, padding: "2px 6px" }}>
-            <span style={{ fontSize: 34, fontWeight: 800, color: numVal ? "#f9fafb" : "#374151", fontFamily: "Syne, sans-serif", lineHeight: 1 }}>{numVal || "—"}</span>
+            <span style={{ fontSize: 34, fontWeight: 800, color: localVal ? "#f9fafb" : "#374151", fontFamily: "Syne, sans-serif", lineHeight: 1 }}>{localVal || "—"}</span>
             <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>{unit}</span>
           </button>
         )}
       </div>
       <input
-        type="range" min={min} max={sliderMax} step={step} value={numVal}
+        type="range" min={min} max={sliderMax} step={step} value={localVal}
         onChange={handleSlider}
+        onMouseUp={commitSlider}
+        onTouchEnd={commitSlider}
         className="weight-slider"
         style={{
           WebkitAppearance: "none", appearance: "none",
@@ -546,10 +639,14 @@ export default function App() {
   const [editingDaySession, setEditingDaySession] = useState(null);
   const [weekOverrides, setWeekOverrides] = useState(() => { try { return JSON.parse(localStorage.getItem(OVERRIDES_KEY) || "{}"); } catch { return {}; } });
   const [detailExercise, setDetailExercise] = useState(null);
+  const [templates, setTemplates] = useState(() => { try { return JSON.parse(localStorage.getItem(TEMPLATES_KEY) || "[]"); } catch { return []; } });
+  const [editingTemplate, setEditingTemplate] = useState(null);
+  const touchStartX = useRef(null);
 
   useEffect(() => { saveData(data); }, [data]);
   useEffect(() => { saveRoutine(routine); }, [routine]);
   useEffect(() => { localStorage.setItem(OVERRIDES_KEY, JSON.stringify(weekOverrides)); }, [weekOverrides]);
+  useEffect(() => { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(templates)); }, [templates]);
   useEffect(() => { localStorage.setItem("gym_pinned_exercises", JSON.stringify(pinnedExercises)); }, [pinnedExercises]);
 
   function showToast(msg) { setToast(msg); setTimeout(() => setToast(""), 2200); }
@@ -558,12 +655,39 @@ export default function App() {
   function setSessionForDay(dayIdx, sessionIdx) { setWeekOverrides(prev => ({ ...prev, [getWeekKey(dayIdx)]: sessionIdx })); }
   function resetSessionForDay(dayIdx) { setWeekOverrides(prev => { const n = {...prev}; delete n[getWeekKey(dayIdx)]; return n; }); }
 
+  function resolveSession(key) {
+    if (typeof key === "string" && key.startsWith("t-")) {
+      return templates.find(t => t.id === key) || routine[0];
+    }
+    return routine[typeof key === "number" ? key : parseInt(key)] || routine[0];
+  }
+
+  function handleSwipeTouchStart(e) { touchStartX.current = e.touches[0].clientX; }
+  function handleSwipeTouchEnd(e) {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(dx) > 60) setRoutineDay(d => dx < 0 ? (d + 1) % 7 : (d + 6) % 7);
+    touchStartX.current = null;
+  }
+
+  function saveTemplate(form) {
+    setTemplates(prev => prev.find(t => t.id === form.id) ? prev.map(t => t.id === form.id ? form : t) : [...prev, form]);
+    setEditingTemplate(null);
+    showToast(form.name + " guardada");
+  }
+  function deleteTemplate(id) {
+    setTemplates(prev => prev.filter(t => t.id !== id));
+    setWeekOverrides(prev => { const n = { ...prev }; Object.keys(n).forEach(k => { if (n[k] === id) delete n[k]; }); return n; });
+    setEditingTemplate(null);
+    showToast("Plantilla eliminada");
+  }
+
   function buildContext() {
     const now = new Date();
     const sow = new Date(now); sow.setDate(now.getDate() - now.getDay());
     const weekSess = data.sessions.filter(s => new Date(s.date) >= sow);
     const recent = [...data.sessions].sort((a,b) => new Date(b.date)-new Date(a.date)).slice(0,10);
-    const todayRoutine = routine[getSessionForDay([6,0,1,2,3,4,5][now.getDay()])];
+    const todayRoutine = resolveSession(getSessionForDay([6,0,1,2,3,4,5][now.getDay()]));
     const sessText = recent.map(s => formatDate(s.date) + " - " + s.exercise + ": " + s.sets.map(x => x.weight + "kg x" + x.reps + (x.rir !== undefined ? " RIR" + x.rir : "")).join(", ")).join("\n");
     const volMap = weekSess.reduce((acc, s) => { const m = MUSCLE_MAP[s.exercise] || "Otro"; acc[m] = (acc[m]||0) + s.sets.length; return acc; }, {});
     const volText = Object.entries(volMap).map(([m,n]) => m + ": " + n + " series").join(", ");
@@ -688,7 +812,7 @@ export default function App() {
             {(() => {
               const map = [6,0,1,2,3,4,5];
               const todayIdx = map[new Date().getDay()];
-              const todaySession = routine[getSessionForDay(todayIdx)];
+              const todaySession = resolveSession(getSessionForDay(todayIdx));
               if (!todaySession.rest) return (
                 <div style={{ background: "linear-gradient(135deg, #1e2d47 0%, #111827 100%)", borderRadius: 18, padding: "14px 16px", marginBottom: 16, border: "1px solid rgba(245,158,11,0.2)" }}>
                   <div style={{ fontSize: 9, color: "#f59e0b", fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 }}>Hoy toca</div>
@@ -848,7 +972,7 @@ export default function App() {
         )}
 
         {view === "routine" && (
-          <div className="sec">
+          <div className="sec" onTouchStart={handleSwipeTouchStart} onTouchEnd={handleSwipeTouchEnd}>
             {editingDaySession !== null && (
               <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
                 <div onClick={() => setEditingDaySession(null)} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} />
@@ -869,6 +993,27 @@ export default function App() {
                       </button>
                     );
                   })}
+                  {templates.length > 0 && (
+                    <>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, margin: "12px 0 8px" }}>Plantillas</div>
+                      {templates.map(t => {
+                        const isSelected = getSessionForDay(editingDaySession) === t.id;
+                        return (
+                          <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                            <button onClick={() => { setSessionForDay(editingDaySession, t.id); setEditingDaySession(null); }} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px", borderRadius: 14, cursor: "pointer", background: isSelected ? "rgba(245,158,11,0.12)" : "rgba(255,255,255,0.04)", border: isSelected ? "1.5px solid #f59e0b" : "1.5px solid rgba(124,58,237,0.3)" }}>
+                              <div style={{ textAlign: "left" }}>
+                                <div style={{ fontSize: 14, fontWeight: 700, color: "#f9fafb" }}>{t.name}</div>
+                                <div style={{ fontSize: 11, color: "#64748b" }}>{t.sub || "Plantilla"}{t.duration ? " · " + t.duration : ""}</div>
+                              </div>
+                              {isSelected && <span style={{ fontSize: 16, color: "#f59e0b" }}>✓</span>}
+                            </button>
+                            <button onClick={() => { setEditingTemplate(t); setEditingDaySession(null); }} style={{ flexShrink: 0, width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", color: "#94a3b8", fontSize: 14, cursor: "pointer" }}>✎</button>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
+                  <button onClick={() => { setEditingDaySession(null); setEditingTemplate({ id: "t-" + Date.now(), name: "", sub: "", duration: "", blocks: [], custom: true }); }} style={{ width: "100%", padding: "11px", borderRadius: 12, border: "1.5px dashed rgba(255,255,255,0.15)", background: "none", color: "#64748b", fontSize: 13, cursor: "pointer", marginTop: 4, marginBottom: 4 }}>+ Nueva plantilla</button>
                   {getWeekKey(editingDaySession) in weekOverrides && (
                     <button onClick={() => { resetSessionForDay(editingDaySession); setEditingDaySession(null); }} style={{ width: "100%", padding: "11px", borderRadius: 12, border: "none", background: "none", color: "#64748b", fontSize: 13, cursor: "pointer", marginTop: 4 }}>Volver a la sesion por defecto</button>
                   )}
@@ -887,8 +1032,8 @@ export default function App() {
               <div style={{ background: "linear-gradient(145deg, #1c2840 0%, #111827 100%)", borderRadius: 18, padding: 16, marginBottom: 14, border: "1px solid rgba(255,255,255,0.07)" }}>
                 <div style={{ fontSize: 12, color: "#64748b", marginBottom: 14 }}>Arrastra las sesiones entre dias para reorganizar tu semana</div>
                 {routine.map((d, i) => {
-                  const sessionIdx = getSessionForDay(i);
-                  const session = routine[sessionIdx];
+                  const sessionKey = getSessionForDay(i);
+                  const session = resolveSession(sessionKey);
                   const isOverridden = getWeekKey(i) in weekOverrides && weekOverrides[getWeekKey(i)] !== i;
                   const todayIdx = [6,0,1,2,3,4,5][new Date().getDay()];
                   const isToday = todayIdx === i;
@@ -905,7 +1050,7 @@ export default function App() {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, fontWeight: 700, color: "#f9fafb", display: "flex", alignItems: "center", gap: 6 }}>
-                          {session.label}
+                          {session.label || session.name}
                           {isOverridden && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#a78bfa", display: "inline-block" }} />}
                         </div>
                         <div style={{ fontSize: 10, color: "#64748b" }}>{session.sub}</div>
@@ -918,31 +1063,36 @@ export default function App() {
               </div>
             )}
 
-            <div style={{ display: "flex", gap: 6, marginBottom: 16, overflowX: "auto", paddingBottom: 4 }}>
-              {routine.map((d, i) => {
-                const todayIdx = [6,0,1,2,3,4,5][new Date().getDay()];
-                const isToday = todayIdx === i;
-                const sessionIdx = getSessionForDay(i);
-                const isOverridden = getWeekKey(i) in weekOverrides && weekOverrides[getWeekKey(i)] !== i;
-                return (
-                  <button key={i} onClick={() => setRoutineDay(i)} style={{ flexShrink: 0, padding: "8px 12px", borderRadius: 12, cursor: "pointer", fontSize: 12, fontWeight: 700, background: routineDay === i ? "rgba(245,158,11,0.2)" : isToday ? "rgba(245,158,11,0.1)" : "rgba(255,255,255,0.06)", color: routineDay === i ? "#f59e0b" : isToday ? "#f59e0b" : "#64748b", border: routineDay === i ? "1.5px solid rgba(245,158,11,0.5)" : isToday && routineDay !== i ? "1.5px solid rgba(245,158,11,0.3)" : isOverridden ? "1.5px solid #a78bfa" : "1.5px solid transparent", position: "relative", transition: "all .15s" }}>
-                    <div>{d.day}</div>
-                    <div style={{ fontSize: 9, fontWeight: 600, marginTop: 2, opacity: .8 }}>{routine[sessionIdx].label.split(" ")[0]}</div>
-                    {isOverridden && <div style={{ position: "absolute", top: 4, right: 4, width: 6, height: 6, borderRadius: "50%", background: "#a78bfa" }} />}
-                  </button>
-                );
-              })}
+            <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 16 }}>
+              <button onClick={() => setRoutineDay(d => (d + 6) % 7)} style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", color: "#94a3b8", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>‹</button>
+              <div style={{ flex: 1, display: "flex", gap: 6, overflowX: "auto", paddingBottom: 0 }}>
+                {routine.map((d, i) => {
+                  const todayIdx = [6,0,1,2,3,4,5][new Date().getDay()];
+                  const isToday = todayIdx === i;
+                  const sessionKey = getSessionForDay(i);
+                  const resolvedSession = resolveSession(sessionKey);
+                  const isOverridden = getWeekKey(i) in weekOverrides && weekOverrides[getWeekKey(i)] !== i;
+                  return (
+                    <button key={i} onClick={() => setRoutineDay(i)} style={{ flexShrink: 0, padding: "8px 12px", borderRadius: 12, cursor: "pointer", fontSize: 12, fontWeight: 700, background: routineDay === i ? "rgba(245,158,11,0.2)" : isToday ? "rgba(245,158,11,0.1)" : "rgba(255,255,255,0.06)", color: routineDay === i ? "#f59e0b" : isToday ? "#f59e0b" : "#64748b", border: routineDay === i ? "1.5px solid rgba(245,158,11,0.5)" : isToday && routineDay !== i ? "1.5px solid rgba(245,158,11,0.3)" : isOverridden ? "1.5px solid #a78bfa" : "1.5px solid transparent", position: "relative", transition: "all .15s" }}>
+                      <div>{d.day}</div>
+                      <div style={{ fontSize: 9, fontWeight: 600, marginTop: 2, opacity: .8 }}>{(resolvedSession.label || resolvedSession.name || "").split(" ")[0]}</div>
+                      {isOverridden && <div style={{ position: "absolute", top: 4, right: 4, width: 6, height: 6, borderRadius: "50%", background: "#a78bfa" }} />}
+                    </button>
+                  );
+                })}
+              </div>
+              <button onClick={() => setRoutineDay(d => (d + 1) % 7)} style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", color: "#94a3b8", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>›</button>
             </div>
 
             {(() => {
-              const sessionIdx = getSessionForDay(routineDay);
-              const day = routine[sessionIdx];
+              const sessionKey = getSessionForDay(routineDay);
+              const day = resolveSession(sessionKey);
               const isOverridden = getWeekKey(routineDay) in weekOverrides && weekOverrides[getWeekKey(routineDay)] !== routineDay;
               if (day.rest) return (
                 <>
                   <div style={{ background: "linear-gradient(145deg, #1c2840 0%, #111827 100%)", borderRadius: 18, padding: 28, textAlign: "center", border: "1px solid rgba(255,255,255,0.07)", marginBottom: 10 }}>
-                    <div style={{ fontSize: 40, marginBottom: 12 }}>{day.label.includes("Trail") ? "🏃" : "🧘"}</div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: "#f9fafb", fontFamily: "Syne, sans-serif" }}>{day.label}</div>
+                    <div style={{ fontSize: 40, marginBottom: 12 }}>{(day.label || day.name || "").includes("Trail") ? "🏃" : "🧘"}</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: "#f9fafb", fontFamily: "Syne, sans-serif" }}>{day.label || day.name}</div>
                     <div style={{ fontSize: 13, color: "#64748b", marginTop: 6 }}>{day.duration}</div>
                   </div>
                   <button onClick={() => setEditingDaySession(routineDay)} style={{ width: "100%", padding: "11px", borderRadius: 14, border: "1.5px solid rgba(255,255,255,0.1)", background: "none", color: "#94a3b8", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Cambiar sesion de este dia</button>
@@ -953,7 +1103,7 @@ export default function App() {
                   <div style={{ background: "linear-gradient(135deg, #1e2d47 0%, #111827 100%)", borderRadius: 16, padding: "14px 16px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid rgba(245,158,11,0.15)" }}>
                     <div>
                       <div style={{ fontSize: 10, color: isOverridden ? "#a78bfa" : "#f59e0b", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>{routine[routineDay].day} · {isOverridden ? "Sesion cambiada" : day.sub}</div>
-                      <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", fontFamily: "Syne, sans-serif" }}>{day.label}</div>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", fontFamily: "Syne, sans-serif" }}>{day.label || day.name}</div>
                       <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{day.duration}</div>
                     </div>
                     <button onClick={() => setEditingDaySession(routineDay)} style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 10, padding: "8px 12px", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Cambiar</button>
@@ -1124,6 +1274,7 @@ export default function App() {
 
       {detailExercise && <ExerciseDetailPanel exercise={detailExercise} sessions={data.sessions} onClose={() => setDetailExercise(null)} onLog={(ex) => { openLog(ex); }} />}
       {aiExercise && <AIPanel exercise={aiExercise} sessions={data.sessions} onClose={() => setAiExercise(null)} />}
+      {editingTemplate && <TemplateEditorPanel template={editingTemplate} allExercises={allRoutineExercises} onSave={saveTemplate} onDelete={deleteTemplate} onClose={() => setEditingTemplate(null)} />}
 
       {toast && (
         <div style={{ position: "fixed", bottom: 100, left: "50%", transform: "translateX(-50%)", background: "linear-gradient(135deg, #1e2d47, #111827)", color: "#fff", borderRadius: 12, padding: "12px 22px", fontSize: 14, fontWeight: 600, zIndex: 999, animation: "toastFade 2.2s ease forwards", whiteSpace: "nowrap", border: "1px solid rgba(245,158,11,0.3)" }}>
