@@ -975,7 +975,9 @@ export default function App() {
                   <div style={{ display: "flex", justifyContent: "center", padding: "14px 0 8px" }}>
                     <div style={{ width: 36, height: 4, borderRadius: 99, background: "rgba(255,255,255,0.15)" }} />
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 14 }}>Sesion para el {routine[editingDaySession].day}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 14 }}>
+                      Sesion para el <span style={{ color: "#f59e0b" }}>{routine[editingDaySession].day}</span>
+                  </div>
                   {routine.map((r, ri) => {
                     const isSelected = getSessionForDay(editingDaySession) === ri;
                     return (
