@@ -469,13 +469,7 @@ function SliderInput({ label, value, onChange, min = 0, max = 100, step = 1, uni
 
   useEffect(() => { setLocalVal(parseFloat(value) || 0); }, [value]);
 
-  const sliderMax = useMemo(() => {
-    if (unit !== "kg") return max;
-    const histMax = sessions
-      .filter(s => s.exercise === exercise)
-      .flatMap(s => s.sets.map(x => parseFloat(x.weight) || 0));
-    return Math.min(200, Math.max(max, Math.ceil((Math.max(localVal, ...histMax, 0) + 25) / step) * step));
-  }, [unit, max, sessions, exercise, step]);
+  const sliderMax = unit === "kg" ? 200 : max;
 
   const pct = sliderMax > min ? Math.min(((localVal - min) / (sliderMax - min)) * 100, 100) : 0;
 
@@ -518,7 +512,6 @@ function SliderInput({ label, value, onChange, min = 0, max = 100, step = 1, uni
       </div>
       <input
         type="range" min={min} max={sliderMax} step={step} value={localVal}
-        onChange={handleSlider}
         onMouseUp={commitSlider}
         onTouchEnd={commitSlider}
         className="weight-slider"
