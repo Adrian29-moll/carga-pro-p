@@ -510,18 +510,20 @@ function SliderInput({ label, value, onChange, min = 0, max = 100, step = 1, uni
           </button>
         )}
       </div>
-      <input
-        type="range" min={min} max={sliderMax} step={step} value={localVal}
-        onMouseUp={commitSlider}
-        onTouchEnd={commitSlider}
-        className="weight-slider"
-        style={{
-          WebkitAppearance: "none", appearance: "none",
-          width: "100%", display: "block",
-          height: 6, borderRadius: 99, outline: "none", cursor: "pointer", marginBottom: 5,
-          background: `linear-gradient(to right, #f59e0b ${pct}%, rgba(255,255,255,0.15) ${pct}%)`,
-        }}
-      />
+     <input
+  type="range" min={min} max={sliderMax} step={step} value={localVal}
+  onChange={handleSlider}
+  onMouseUp={commitSlider}
+  onTouchEnd={commitSlider}
+  className="weight-slider"
+  style={{
+    WebkitAppearance: "none", appearance: "none",
+    width: "100%", display: "block",
+    height: 6, borderRadius: 99, outline: "none", cursor: "pointer", marginBottom: 5,
+    background: `linear-gradient(to right, #f59e0b ${pct}%, rgba(255,255,255,0.15) ${pct}%)`,
+  }}
+/>
+
       <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
         <span style={{ fontSize: 9, color: "#374151" }}>{min}</span>
         <span style={{ fontSize: 9, color: "#374151" }}>{sliderMax} {unit}</span>
