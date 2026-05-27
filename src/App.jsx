@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 
 const STORAGE_KEY = "gym_tracker_v2";
 const ROUTINE_KEY = "gym_routine_v1";
@@ -467,26 +467,26 @@ function SliderInput({ label, value, onChange, min = 0, max = 100, step = 1, uni
   const [localVal, setLocalVal] = useState(() => parseFloat(value) || 0);
   const inputRef = useRef(null);
 
-  // Sync when value changes externally (e.g. "Copiar ultima")
   useEffect(() => { setLocalVal(parseFloat(value) || 0); }, [value]);
 
-  const histMax = sessions.filter(s => s.exercise === exercise).flatMap(s => s.sets.map(x => parseFloat(x.weight) || 0));
-  const sliderMax = unit === "kg"
-    ? Math.min(200, Math.max(max, Math.ceil((Math.max(localVal, ...histMax, 0) + 25) / step) * step))
-    : max;
+  const sliderMax = useMemo(() => {
+    if (unit !== "kg") return max;
+    const histMax = sessions
+      .filter(s => s.exercise === exercise)
+      .flatMap(s => s.sets.map(x => parseFloat(x.weight) || 0));
+    return Math.min(200, Math.max(max, Math.ceil((Math.max(localVal, ...histMax, 0) + 25) / step) * step));
+  }, [unit, max, sessions, exercise, step]);
+
   const pct = sliderMax > min ? Math.min(((localVal - min) / (sliderMax - min)) * 100, 100) : 0;
 
-  // Durante el drag solo actualiza estado local → sin re-render del padre → sin ruido
   function handleSlider(e) {
     setLocalVal(Math.round(parseFloat(e.target.value) / step) * step);
   }
-  // Al soltar confirma al padre
   function commitSlider(e) {
     const v = Math.round(parseFloat(e.target.value) / step) * step;
     setLocalVal(v);
     onChange(String(v));
   }
-
   function startEdit() {
     setDraft(localVal === 0 ? "" : String(localVal));
     setEditing(true);
@@ -494,7 +494,7 @@ function SliderInput({ label, value, onChange, min = 0, max = 100, step = 1, uni
   }
   function commitEdit() {
     const p = parseFloat(draft);
-    if (!isNaN(p) && p >= min) { setLocalVal(p); onChange(String(p)); }
+    if (!isNaN(p) && p >= min && p <= 200) { setLocalVal(p); onChange(String(p)); }
     setEditing(false);
   }
 
