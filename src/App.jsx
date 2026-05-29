@@ -679,6 +679,8 @@ export default function App() {
   const [data, setData] = useState(loadData);
   const [routine, setRoutine] = useState(loadRoutine);
   const [view, setView] = useState("dashboard");
+  const [showDataMenu, setShowDataMenu] = useState(false);
+  const importInputRef = useRef(null);
   const [logExercise, setLogExercise] = useState(null);
   const [logDate, setLogDate] = useState(new Date().toISOString().slice(0, 10));
   const [sets, setSets] = useState([{ weight: "", reps: "", rir: undefined }]);
@@ -713,6 +715,46 @@ export default function App() {
   useEffect(() => { localStorage.setItem(OVERRIDES_KEY, JSON.stringify(weekOverrides)); }, [weekOverrides]);
   useEffect(() => { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(templates)); }, [templates]);
   useEffect(() => { localStorage.setItem("gym_pinned_exercises", JSON.stringify(pinnedExercises)); }, [pinnedExercises]);
+
+  function handleExport() {
+    const payload = {
+      sessions: data.sessions,
+      routine,
+      templates,
+      weekOverrides,
+      pinnedExercises,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const today = new Date().toISOString().slice(0, 10);
+    a.download = `carga-pro-backup-${today}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setShowDataMenu(false);
+    showToast("Datos exportados");
+  }
+
+  function handleImport(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        if (parsed.sessions) setData(d => ({ ...d, sessions: parsed.sessions }));
+        if (parsed.routine) setRoutine(parsed.routine);
+        if (parsed.templates) setTemplates(parsed.templates);
+        if (parsed.weekOverrides) setWeekOverrides(parsed.weekOverrides);
+        if (parsed.pinnedExercises) setPinnedExercises(parsed.pinnedExercises);
+        showToast("Datos importados correctamente");
+      } catch { showToast("Error al leer el archivo"); }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+    setShowDataMenu(false);
+  }
 
   function showToast(msg) { setToast(msg); setTimeout(() => setToast(""), 2200); }
 
@@ -860,13 +902,43 @@ export default function App() {
         .weight-slider::-moz-range-thumb{width:28px;height:28px;border-radius:50%;background:#f59e0b;cursor:pointer;border:none;box-shadow:0 0 10px rgba(245,158,11,0.6)}
       `}</style>
 
+      <input ref={importInputRef} type="file" accept=".json" onChange={handleImport} style={{ display: "none" }} />
+
       <div style={{ background: "linear-gradient(135deg, #111827 0%, #0f1729 100%)", padding: "48px 20px 16px", position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: -40, right: -20, width: 110, height: 110, borderRadius: "50%", background: "rgba(245,158,11,0.15)" }} />
         <div style={{ position: "absolute", bottom: -20, left: 10, width: 70, height: 70, borderRadius: "50%", background: "rgba(245,158,11,0.07)" }} />
         <div style={{ fontSize: 9, color: "#f59e0b", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", marginBottom: 4 }}>Tu tracker de fuerza</div>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-          <span style={{ fontSize: 26, fontWeight: 800, color: "#fff", fontFamily: "Syne, sans-serif" }}>CARGA</span>
-          <span style={{ fontSize: 26, fontWeight: 800, color: "#f59e0b", fontFamily: "Syne, sans-serif" }}>PRO</span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+            <span style={{ fontSize: 26, fontWeight: 800, color: "#fff", fontFamily: "Syne, sans-serif" }}>CARGA</span>
+            <span style={{ fontSize: 26, fontWeight: 800, color: "#f59e0b", fontFamily: "Syne, sans-serif" }}>PRO</span>
+          </div>
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setShowDataMenu(v => !v)}
+              style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.08)", color: "#94a3b8", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+            >⇅</button>
+            {showDataMenu && (
+              <>
+                <div onClick={() => setShowDataMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 299 }} />
+                <div style={{ position: "absolute", top: 42, right: 0, background: "#1c2840", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, zIndex: 300, minWidth: 160, overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}>
+                  <button
+                    onClick={handleExport}
+                    style={{ width: "100%", padding: "12px 16px", background: "none", border: "none", color: "#e5e7eb", fontSize: 14, fontWeight: 600, cursor: "pointer", textAlign: "left", fontFamily: "'DM Sans', sans-serif" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "none"}
+                  >📤 Exportar datos</button>
+                  <div style={{ height: 1, background: "rgba(255,255,255,0.07)" }} />
+                  <button
+                    onClick={() => { importInputRef.current?.click(); setShowDataMenu(false); }}
+                    style={{ width: "100%", padding: "12px 16px", background: "none", border: "none", color: "#e5e7eb", fontSize: 14, fontWeight: 600, cursor: "pointer", textAlign: "left", fontFamily: "'DM Sans', sans-serif" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "none"}
+                  >📥 Importar datos</button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
