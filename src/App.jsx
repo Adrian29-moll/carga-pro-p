@@ -680,6 +680,8 @@ export default function App() {
   const [routine, setRoutine] = useState(loadRoutine);
   const [view, setView] = useState("dashboard");
   const [showDataMenu, setShowDataMenu] = useState(false);
+  const [dataMenuPos, setDataMenuPos] = useState({ top: 0, right: 0 });
+  const dataMenuBtnRef = useRef(null);
   const importInputRef = useRef(null);
   const [logExercise, setLogExercise] = useState(null);
   const [logDate, setLogDate] = useState(new Date().toISOString().slice(0, 10));
@@ -913,34 +915,41 @@ export default function App() {
             <span style={{ fontSize: 26, fontWeight: 800, color: "#fff", fontFamily: "Syne, sans-serif" }}>CARGA</span>
             <span style={{ fontSize: 26, fontWeight: 800, color: "#f59e0b", fontFamily: "Syne, sans-serif" }}>PRO</span>
           </div>
-          <div style={{ position: "relative" }}>
+          <div ref={dataMenuBtnRef}>
             <button
-              onClick={() => setShowDataMenu(v => !v)}
+              onClick={() => {
+                if (dataMenuBtnRef.current) {
+                  const rect = dataMenuBtnRef.current.getBoundingClientRect();
+                  setDataMenuPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+                }
+                setShowDataMenu(v => !v);
+              }}
               style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.08)", color: "#94a3b8", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
             >⇅</button>
-            {showDataMenu && (
-              <>
-                <div onClick={() => setShowDataMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 299 }} />
-                <div style={{ position: "absolute", top: 42, right: 0, background: "#1c2840", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, zIndex: 300, minWidth: 160, overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}>
-                  <button
-                    onClick={handleExport}
-                    style={{ width: "100%", padding: "12px 16px", background: "none", border: "none", color: "#e5e7eb", fontSize: 14, fontWeight: 600, cursor: "pointer", textAlign: "left", fontFamily: "'DM Sans', sans-serif" }}
-                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
-                    onMouseLeave={e => e.currentTarget.style.background = "none"}
-                  >📤 Exportar datos</button>
-                  <div style={{ height: 1, background: "rgba(255,255,255,0.07)" }} />
-                  <button
-                    onClick={() => { importInputRef.current?.click(); setShowDataMenu(false); }}
-                    style={{ width: "100%", padding: "12px 16px", background: "none", border: "none", color: "#e5e7eb", fontSize: 14, fontWeight: 600, cursor: "pointer", textAlign: "left", fontFamily: "'DM Sans', sans-serif" }}
-                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
-                    onMouseLeave={e => e.currentTarget.style.background = "none"}
-                  >📥 Importar datos</button>
-                </div>
-              </>
-            )}
           </div>
         </div>
       </div>
+
+      {showDataMenu && (
+        <>
+          <div onClick={() => setShowDataMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 998 }} />
+          <div style={{ position: "fixed", top: dataMenuPos.top, right: dataMenuPos.right, background: "#1c2840", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, zIndex: 999, minWidth: 160, overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}>
+            <button
+              onClick={handleExport}
+              style={{ width: "100%", padding: "12px 16px", background: "none", border: "none", color: "#e5e7eb", fontSize: 14, fontWeight: 600, cursor: "pointer", textAlign: "left", fontFamily: "'DM Sans', sans-serif" }}
+              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
+              onMouseLeave={e => e.currentTarget.style.background = "none"}
+            >📤 Exportar datos</button>
+            <div style={{ height: 1, background: "rgba(255,255,255,0.07)" }} />
+            <button
+              onClick={() => { importInputRef.current?.click(); setShowDataMenu(false); }}
+              style={{ width: "100%", padding: "12px 16px", background: "none", border: "none", color: "#e5e7eb", fontSize: 14, fontWeight: 600, cursor: "pointer", textAlign: "left", fontFamily: "'DM Sans', sans-serif" }}
+              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
+              onMouseLeave={e => e.currentTarget.style.background = "none"}
+            >📥 Importar datos</button>
+          </div>
+        </>
+      )}
 
       <div style={{ padding: 16 }}>
 
