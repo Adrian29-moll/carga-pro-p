@@ -1390,15 +1390,16 @@ export default function App() {
                           </div>
                         );
                       })}
-                      <button onClick={() => {
-                        const newEx = { name: "Nuevo ejercicio", sets: 3, reps: "8-12", rpe: "7", rest: "90 s" };
-                        const newRoutine = JSON.parse(JSON.stringify(routine));
-                        newRoutine[routineDay].blocks[bi].exercises.push(newEx);
-                        setRoutine(newRoutine);
-                        setEditingExercise({ dayIdx: routineDay, blockIdx: bi, exIdx: newRoutine[routineDay].blocks[bi].exercises.length - 1 });
-                      }} style={{ width: "100%", padding: "9px", borderRadius: 10, border: "1.5px dashed rgba(255,255,255,0.12)", background: "none", color: "#64748b", fontSize: 12, fontWeight: 600, cursor: "pointer", marginTop: 2 }}>+ Añadir ejercicio</button>
                     </div>
                   ))}
+                  <button onClick={() => {
+                    const newEx = { name: "Nuevo ejercicio", sets: 3, reps: "8-12", rpe: "7", rest: "90 s" };
+                    const lastBi = day.blocks.length - 1;
+                    const newRoutine = JSON.parse(JSON.stringify(routine));
+                    newRoutine[routineDay].blocks[lastBi].exercises.push(newEx);
+                    setRoutine(newRoutine);
+                    setEditingExercise({ dayIdx: routineDay, blockIdx: lastBi, exIdx: newRoutine[routineDay].blocks[lastBi].exercises.length - 1 });
+                  }} style={{ width: "100%", padding: "9px", borderRadius: 10, border: "1.5px dashed rgba(255,255,255,0.12)", background: "none", color: "#64748b", fontSize: 12, fontWeight: 600, cursor: "pointer", marginTop: 2 }}>+ Añadir ejercicio</button>
                 </>
               );
             })()}
