@@ -462,72 +462,104 @@ function TemplateEditorPanel({ template, allExercises, onSave, onDelete, onClose
 }
 
 function SliderInput({ label, value, onChange, min = 0, max = 100, step = 1, unit = "", sessions = [], exercise = "" }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-  const [localVal, setLocalVal] = useState(() => parseFloat(value) || 0);
-  const inputRef = useRef(null);
+  const itemH = 44;
+  const padding = 2;
+  const drumRef = useRef(null);
+  const listRef = useRef(null);
+  const startY = useRef(null);
+  const startIdx = useRef(null);
 
-  useEffect(() => { setLocalVal(parseFloat(value) || 0); }, [value]);
+  const values = useMemo(() => {
+    const arr = [];
+    if (unit === "kg") {
+      for (let w = 0; w <= 200; w += 1.25) arr.push(Math.round(w * 100) / 100);
+    } else {
+      for (let r = min; r <= max; r += step) arr.push(r);
+    }
+    return arr;
+  }, [unit, min, max, step]);
 
-  const sliderMax = unit === "kg" ? 200 : max;
+  const currentIdx = useMemo(() => {
+    const v = parseFloat(value) || 0;
+    let closest = 0;
+    let minDiff = Infinity;
+    values.forEach((val, i) => {
+      const diff = Math.abs(val - v);
+      if (diff < minDiff) { minDiff = diff; closest = i; }
+    });
+    return closest;
+  }, [value, values]);
 
-  const pct = sliderMax > min ? Math.min(((localVal - min) / (sliderMax - min)) * 100, 100) : 0;
+  useEffect(() => {
+    if (!listRef.current) return;
+    listRef.current.style.transition = "transform 0.15s ease";
+    listRef.current.style.transform = `translateY(${-currentIdx * itemH}px)`;
+    const items = listRef.current.querySelectorAll(".pick-item");
+    items.forEach((el, i) => {
+      el.style.opacity = i === currentIdx ? "1" : "0.3";
+      el.style.fontSize = i === currentIdx ? "22px" : "16px";
+      el.style.fontWeight = i === currentIdx ? "700" : "400";
+    });
+  }, [currentIdx]);
 
-  function handleSlider(e) {
-    setLocalVal(Math.round(parseFloat(e.target.value) / step) * step);
+  function setIdx(idx) {
+    const clamped = Math.max(0, Math.min(values.length - 1, idx));
+    onChange(String(values[clamped]));
   }
-  function commitSlider(e) {
-    const v = Math.round(parseFloat(e.target.value) / step) * step;
-    setLocalVal(v);
-    onChange(String(v));
+
+  function onMouseDown(e) { startY.current = e.clientY; startIdx.current = currentIdx; e.preventDefault(); }
+  function onMouseMove(e) {
+    if (startY.current === null) return;
+    const delta = Math.round((startY.current - e.clientY) / itemH);
+    setIdx(startIdx.current + delta);
   }
-  function startEdit() {
-    setDraft(localVal === 0 ? "" : String(localVal));
-    setEditing(true);
-    setTimeout(() => inputRef.current?.focus(), 50);
+  function onMouseUp() { startY.current = null; }
+
+  function onTouchStart(e) { startY.current = e.touches[0].clientY; startIdx.current = currentIdx; }
+  function onTouchMove(e) {
+    if (startY.current === null) return;
+    const delta = Math.round((startY.current - e.touches[0].clientY) / itemH);
+    setIdx(startIdx.current + delta);
+    e.preventDefault();
   }
-  function commitEdit() {
-    const p = parseFloat(draft);
-    if (!isNaN(p) && p >= min && p <= 200) { setLocalVal(p); onChange(String(p)); }
-    setEditing(false);
-  }
+  function onTouchEnd() { startY.current = null; }
+
+  function onWheel(e) { e.preventDefault(); setIdx(currentIdx + (e.deltaY > 0 ? 1 : -1)); }
+
+  useEffect(() => {
+    const drum = drumRef.current;
+    if (!drum) return;
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    drum.addEventListener("wheel", onWheel, { passive: false });
+    drum.addEventListener("touchmove", onTouchMove, { passive: false });
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      drum.removeEventListener("wheel", onWheel);
+      drum.removeEventListener("touchmove", onTouchMove);
+    };
+  }, [currentIdx]);
+
+  const displayVal = values[currentIdx] ?? 0;
 
   return (
-    <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 14, padding: "12px 10px 10px", border: "1px solid rgba(255,255,255,0.09)", display: "flex", flexDirection: "column", alignItems: "center" }}>
-      <div style={{ fontSize: 9, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>{label}</div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 3, marginBottom: 10, minHeight: 40 }}>
-        {editing ? (
-          <input ref={inputRef} type="number" step={step} value={draft}
-            onChange={e => setDraft(e.target.value)}
-            onBlur={commitEdit}
-            onKeyDown={e => e.key === "Enter" && commitEdit()}
-            style={{ width: 70, textAlign: "center", fontSize: 30, fontWeight: 800, color: "#f59e0b", background: "transparent", border: "none", borderBottom: "2px solid #f59e0b", outline: "none", fontFamily: "Syne, sans-serif" }}
-          />
-        ) : (
-          <button onClick={startEdit} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "baseline", gap: 3, padding: "2px 6px" }}>
-            <span style={{ fontSize: 34, fontWeight: 800, color: localVal ? "#f9fafb" : "#374151", fontFamily: "Syne, sans-serif", lineHeight: 1 }}>{localVal || "—"}</span>
-            <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>{unit}</span>
-          </button>
-        )}
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+      <div style={{ fontSize: 9, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 1 }}>{label}</div>
+      <div ref={drumRef} onMouseDown={onMouseDown} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
+        style={{ width: "100%", height: itemH * 5, overflow: "hidden", position: "relative", background: "rgba(255,255,255,0.05)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.09)", cursor: "ns-resize", userSelect: "none" }}>
+        <div style={{ position: "absolute", top: "50%", left: 8, right: 8, transform: "translateY(-50%)", height: itemH, borderTop: "1.5px solid rgba(245,158,11,0.6)", borderBottom: "1.5px solid rgba(245,158,11,0.6)", borderRadius: 4, zIndex: 1, pointerEvents: "none" }} />
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: itemH * 2, background: "linear-gradient(to bottom, rgba(13,17,23,0.9), transparent)", zIndex: 2, pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: itemH * 2, background: "linear-gradient(to top, rgba(13,17,23,0.9), transparent)", zIndex: 2, pointerEvents: "none" }} />
+        <div ref={listRef} style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: itemH * padding, paddingBottom: itemH * padding }}>
+          {values.map((v, i) => (
+            <div key={i} className="pick-item" style={{ height: itemH, display: "flex", alignItems: "center", justifyContent: "center", width: "100%", color: "#f9fafb", transition: "all 0.1s", flexShrink: 0, fontFamily: "Syne, sans-serif" }}>
+              {unit === "kg" ? (Number.isInteger(v) ? v : v.toFixed(2)) : v}
+            </div>
+          ))}
+        </div>
       </div>
-     <input
-  type="range" min={min} max={sliderMax} step={step} value={localVal}
-  onChange={handleSlider}
-  onMouseUp={commitSlider}
-  onTouchEnd={commitSlider}
-  className="weight-slider"
-  style={{
-    WebkitAppearance: "none", appearance: "none",
-    width: "100%", display: "block",
-    height: 6, borderRadius: 99, outline: "none", cursor: "pointer", marginBottom: 5,
-    background: `linear-gradient(to right, #f59e0b ${pct}%, rgba(255,255,255,0.15) ${pct}%)`,
-  }}
-/>
-
-      <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
-        <span style={{ fontSize: 9, color: "#374151" }}>{min}</span>
-        <span style={{ fontSize: 9, color: "#374151" }}>{sliderMax} {unit}</span>
-      </div>
+      <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>{unit}</div>
     </div>
   );
 }
