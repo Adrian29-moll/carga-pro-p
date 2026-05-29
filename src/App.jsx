@@ -541,6 +541,29 @@ function SliderInput({ label, value, onChange, min = 0, max = 100, step = 1, uni
     };
   }, [currentIdx]);
 
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const inputRef = useRef(null);
+
+  function openKeyboard() {
+    setDraft(String(values[currentIdx] ?? 0));
+    setEditing(true);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }
+
+  function commitKeyboard() {
+    const p = parseFloat(draft);
+    if (!isNaN(p)) {
+      let closest = 0, minDiff = Infinity;
+      values.forEach((v, i) => {
+        const diff = Math.abs(v - p);
+        if (diff < minDiff) { minDiff = diff; closest = i; }
+      });
+      onChange(String(values[closest]));
+    }
+    setEditing(false);
+  }
+
   const displayVal = values[currentIdx] ?? 0;
 
   return (
@@ -551,9 +574,24 @@ function SliderInput({ label, value, onChange, min = 0, max = 100, step = 1, uni
         <div style={{ position: "absolute", top: "50%", left: 8, right: 8, transform: "translateY(-50%)", height: itemH, borderTop: "1.5px solid rgba(245,158,11,0.6)", borderBottom: "1.5px solid rgba(245,158,11,0.6)", borderRadius: 4, zIndex: 1, pointerEvents: "none" }} />
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: itemH * 2, background: "linear-gradient(to bottom, rgba(13,17,23,0.9), transparent)", zIndex: 2, pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: itemH * 2, background: "linear-gradient(to top, rgba(13,17,23,0.9), transparent)", zIndex: 2, pointerEvents: "none" }} />
+        {editing && (
+          <div style={{ position: "absolute", inset: 0, zIndex: 10, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(13,17,23,0.95)", borderRadius: 14 }}>
+            <input
+              ref={inputRef}
+              type="number"
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onBlur={commitKeyboard}
+              onKeyDown={e => e.key === "Enter" && commitKeyboard()}
+              style={{ width: 80, textAlign: "center", fontSize: 28, fontWeight: 800, color: "#f59e0b", background: "transparent", border: "none", borderBottom: "2px solid #f59e0b", outline: "none", fontFamily: "Syne, sans-serif" }}
+            />
+          </div>
+        )}
         <div ref={listRef} style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: itemH * padding, paddingBottom: itemH * padding }}>
           {values.map((v, i) => (
-            <div key={i} className="pick-item" style={{ height: itemH, display: "flex", alignItems: "center", justifyContent: "center", width: "100%", color: "#f9fafb", transition: "all 0.1s", flexShrink: 0, fontFamily: "Syne, sans-serif" }}>
+            <div key={i} className="pick-item"
+              onClick={i === currentIdx ? openKeyboard : undefined}
+              style={{ height: itemH, display: "flex", alignItems: "center", justifyContent: "center", width: "100%", color: "#f9fafb", transition: "all 0.1s", flexShrink: 0, fontFamily: "Syne, sans-serif", cursor: i === currentIdx ? "text" : "ns-resize" }}>
               {unit === "kg" ? (Number.isInteger(v) ? v : v.toFixed(2)) : v}
             </div>
           ))}
