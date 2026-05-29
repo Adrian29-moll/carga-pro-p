@@ -329,8 +329,9 @@ function AIPanel({ exercise, sessions, onClose }) {
   );
 }
 
-function ExerciseEditPanel({ exercise, onSave, onClose }) {
+function ExerciseEditPanel({ exercise, blocks = [], currentBlockIdx = 0, onSave, onDelete, onClose }) {
   const [form, setForm] = useState({ ...exercise });
+  const [targetBlock, setTargetBlock] = useState(currentBlockIdx);
   function update(field, val) { setForm(f => ({ ...f, [field]: val })); }
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
@@ -364,6 +365,16 @@ function ExerciseEditPanel({ exercise, onSave, onClose }) {
         </div>
         <label style={lbl}>Nota (opcional)</label>
         <input value={form.note || ""} onChange={e => update("note", e.target.value)} style={{ ...fld, marginBottom: 12 }} placeholder="Indicacion tecnica..." />
+        {blocks.length > 1 && (
+          <div style={{ marginBottom: 12 }}>
+            <label style={lbl}>Mover a bloque</label>
+            <select value={targetBlock} onChange={e => setTargetBlock(Number(e.target.value))} style={{ ...fld }}>
+              {blocks.map((b, i) => (
+                <option key={i} value={i}>{b.name}{i === currentBlockIdx ? " (actual)" : ""}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20, padding: "12px 14px", background: "rgba(255,255,255,0.06)", borderRadius: 12, border: "1.5px solid rgba(255,255,255,0.1)" }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: "#f9fafb" }}>Ejercicio ancla</div>
@@ -373,7 +384,10 @@ function ExerciseEditPanel({ exercise, onSave, onClose }) {
             <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: form.anchor ? 21 : 3, transition: "left .2s", boxShadow: "0 1px 3px rgba(0,0,0,0.4)" }} />
           </button>
         </div>
-        <button onClick={() => onSave(form)} style={{ width: "100%", padding: 15, borderRadius: 14, border: "none", background: "linear-gradient(135deg, #f59e0b, #f97316)", color: "#111827", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+        <button onClick={onDelete} style={{ width: "100%", padding: 13, borderRadius: 14, border: "1.5px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)", color: "#f87171", fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 10 }}>
+          Eliminar ejercicio
+        </button>
+        <button onClick={() => onSave(form, targetBlock)} style={{ width: "100%", padding: 15, borderRadius: 14, border: "none", background: "linear-gradient(135deg, #f59e0b, #f97316)", color: "#111827", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
           Guardar cambios
         </button>
       </div>
@@ -468,6 +482,10 @@ function SliderInput({ label, value, onChange, min = 0, max = 100, step = 1, uni
   const listRef = useRef(null);
   const startY = useRef(null);
   const startIdx = useRef(null);
+  const isDragging = useRef(false);
+  const currentTranslateY = useRef(0);
+  const rafId = useRef(null);
+  const pendingClientY = useRef(null);
 
   const values = useMemo(() => {
     const arr = [];
@@ -490,41 +508,104 @@ function SliderInput({ label, value, onChange, min = 0, max = 100, step = 1, uni
     return closest;
   }, [value, values]);
 
-  useEffect(() => {
+  function applyTranslate(y, animate) {
     if (!listRef.current) return;
-    listRef.current.style.transition = "transform 0.15s ease";
-    listRef.current.style.transform = `translateY(${-currentIdx * itemH}px)`;
+    listRef.current.style.transition = animate
+      ? "transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+      : "none";
+    listRef.current.style.transform = `translateY(${y}px)`;
+  }
+
+  function updateItemStyles(translateY) {
+    if (!listRef.current) return;
+    const nearestIdx = Math.max(0, Math.min(values.length - 1, Math.round(-translateY / itemH)));
     const items = listRef.current.querySelectorAll(".pick-item");
     items.forEach((el, i) => {
-      el.style.opacity = i === currentIdx ? "1" : "0.3";
-      el.style.fontSize = i === currentIdx ? "22px" : "16px";
-      el.style.fontWeight = i === currentIdx ? "700" : "400";
+      el.style.opacity = i === nearestIdx ? "1" : "0.3";
+      el.style.fontSize = i === nearestIdx ? "22px" : "16px";
+      el.style.fontWeight = i === nearestIdx ? "700" : "400";
     });
+  }
+
+  useEffect(() => {
+    if (isDragging.current) return;
+    const targetY = -currentIdx * itemH;
+    currentTranslateY.current = targetY;
+    applyTranslate(targetY, true);
+    updateItemStyles(targetY);
   }, [currentIdx]);
 
-  function setIdx(idx) {
-    const clamped = Math.max(0, Math.min(values.length - 1, idx));
-    onChange(String(values[clamped]));
+  function snapToNearest() {
+    isDragging.current = false;
+    startY.current = null;
+    if (rafId.current) { cancelAnimationFrame(rafId.current); rafId.current = null; }
+    const snapIdx = Math.max(0, Math.min(values.length - 1, Math.round(-currentTranslateY.current / itemH)));
+    const snapY = -snapIdx * itemH;
+    currentTranslateY.current = snapY;
+    applyTranslate(snapY, true);
+    updateItemStyles(snapY);
+    onChange(String(values[snapIdx]));
   }
 
-  function onMouseDown(e) { startY.current = e.clientY; startIdx.current = currentIdx; e.preventDefault(); }
-  function onMouseMove(e) {
-    if (startY.current === null) return;
-    const delta = Math.round((startY.current - e.clientY) / itemH);
-    setIdx(startIdx.current + delta);
+  function scheduleUpdate(clientY) {
+    pendingClientY.current = clientY;
+    if (rafId.current) return;
+    rafId.current = requestAnimationFrame(() => {
+      rafId.current = null;
+      if (!isDragging.current) return;
+      const dragDelta = pendingClientY.current - startY.current;
+      const rawY = -(startIdx.current * itemH) + dragDelta;
+      const clampedY = Math.max(-(values.length - 1) * itemH, Math.min(0, rawY));
+      currentTranslateY.current = clampedY;
+      applyTranslate(clampedY, false);
+      updateItemStyles(clampedY);
+    });
   }
-  function onMouseUp() { startY.current = null; }
 
-  function onTouchStart(e) { startY.current = e.touches[0].clientY; startIdx.current = currentIdx; }
-  function onTouchMove(e) {
-    if (startY.current === null) return;
-    const delta = Math.round((startY.current - e.touches[0].clientY) / itemH);
-    setIdx(startIdx.current + delta);
+  function onMouseDown(e) {
+    startY.current = e.clientY;
+    startIdx.current = currentIdx;
+    isDragging.current = true;
+    if (listRef.current) listRef.current.style.transition = "none";
     e.preventDefault();
   }
-  function onTouchEnd() { startY.current = null; }
 
-  function onWheel(e) { e.preventDefault(); setIdx(currentIdx + (e.deltaY > 0 ? 1 : -1)); }
+  function onMouseMove(e) {
+    if (!isDragging.current) return;
+    scheduleUpdate(e.clientY);
+  }
+
+  function onMouseUp() {
+    if (isDragging.current) snapToNearest();
+  }
+
+  function onTouchStart(e) {
+    startY.current = e.touches[0].clientY;
+    startIdx.current = currentIdx;
+    isDragging.current = true;
+    if (listRef.current) listRef.current.style.transition = "none";
+  }
+
+  function onTouchMove(e) {
+    if (!isDragging.current) return;
+    scheduleUpdate(e.touches[0].clientY);
+    e.preventDefault();
+  }
+
+  function onTouchEnd() {
+    if (isDragging.current) snapToNearest();
+  }
+
+  function onWheel(e) {
+    e.preventDefault();
+    const baseIdx = Math.max(0, Math.min(values.length - 1, Math.round(-currentTranslateY.current / itemH)));
+    const newIdx = Math.max(0, Math.min(values.length - 1, baseIdx + (e.deltaY > 0 ? 1 : -1)));
+    const snapY = -newIdx * itemH;
+    currentTranslateY.current = snapY;
+    applyTranslate(snapY, true);
+    updateItemStyles(snapY);
+    onChange(String(values[newIdx]));
+  }
 
   useEffect(() => {
     const drum = drumRef.current;
@@ -539,14 +620,15 @@ function SliderInput({ label, value, onChange, min = 0, max = 100, step = 1, uni
       drum.removeEventListener("wheel", onWheel);
       drum.removeEventListener("touchmove", onTouchMove);
     };
-  }, [currentIdx]);
+  }, [values]);
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const inputRef = useRef(null);
 
   function openKeyboard() {
-    setDraft(String(values[currentIdx] ?? 0));
+    const dispIdx = Math.max(0, Math.min(values.length - 1, Math.round(-currentTranslateY.current / itemH)));
+    setDraft(String(values[dispIdx] ?? 0));
     setEditing(true);
     setTimeout(() => inputRef.current?.focus(), 50);
   }
@@ -563,8 +645,6 @@ function SliderInput({ label, value, onChange, min = 0, max = 100, step = 1, uni
     }
     setEditing(false);
   }
-
-  const displayVal = values[currentIdx] ?? 0;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
@@ -849,14 +929,29 @@ export default function App() {
     setView("routine");
   }
 
-  function saveExerciseEdit(form) {
+  function saveExerciseEdit(form, targetBlockIdx) {
     if (!editingExercise) return;
     const { dayIdx, blockIdx, exIdx } = editingExercise;
     const newRoutine = JSON.parse(JSON.stringify(routine));
-    newRoutine[dayIdx].blocks[blockIdx].exercises[exIdx] = form;
+    if (targetBlockIdx !== undefined && targetBlockIdx !== blockIdx) {
+      newRoutine[dayIdx].blocks[blockIdx].exercises.splice(exIdx, 1);
+      newRoutine[dayIdx].blocks[targetBlockIdx].exercises.push(form);
+    } else {
+      newRoutine[dayIdx].blocks[blockIdx].exercises[exIdx] = form;
+    }
     setRoutine(newRoutine);
     setEditingExercise(null);
     showToast("Ejercicio actualizado");
+  }
+
+  function deleteExercise() {
+    if (!editingExercise) return;
+    const { dayIdx, blockIdx, exIdx } = editingExercise;
+    const newRoutine = JSON.parse(JSON.stringify(routine));
+    newRoutine[dayIdx].blocks[blockIdx].exercises.splice(exIdx, 1);
+    setRoutine(newRoutine);
+    setEditingExercise(null);
+    showToast("Ejercicio eliminado");
   }
 
   const anchorExercises = [];
@@ -1272,7 +1367,7 @@ export default function App() {
                                 </div>
                                 {ex.note && <div style={{ fontSize: 11, color: "#64748b", marginTop: 3, fontStyle: "italic" }}>{ex.note}</div>}
                               </div>
-                              <button onClick={() => setEditingExercise({ dayIdx: sessionIdx, blockIdx: bi, exIdx: ei })} style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 700, color: "#94a3b8", cursor: "pointer", flexShrink: 0, marginLeft: 8 }}>Editar</button>
+                              <button onClick={() => setEditingExercise({ dayIdx: routineDay, blockIdx: bi, exIdx: ei })} style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 700, color: "#94a3b8", cursor: "pointer", flexShrink: 0, marginLeft: 8 }}>Editar</button>
                             </div>
                             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: lastLog ? 8 : 10 }}>
                               {[["Series", ex.sets], ["Reps", ex.reps], ["RPE", ex.rpe], ["Descanso", ex.rest]].map(([l, v]) => v && (
@@ -1295,6 +1390,13 @@ export default function App() {
                           </div>
                         );
                       })}
+                      <button onClick={() => {
+                        const newEx = { name: "Nuevo ejercicio", sets: 3, reps: "8-12", rpe: "7", rest: "90 s" };
+                        const newRoutine = JSON.parse(JSON.stringify(routine));
+                        newRoutine[routineDay].blocks[bi].exercises.push(newEx);
+                        setRoutine(newRoutine);
+                        setEditingExercise({ dayIdx: routineDay, blockIdx: bi, exIdx: newRoutine[routineDay].blocks[bi].exercises.length - 1 });
+                      }} style={{ width: "100%", padding: "9px", borderRadius: 10, border: "1.5px dashed rgba(255,255,255,0.12)", background: "none", color: "#64748b", fontSize: 12, fontWeight: 600, cursor: "pointer", marginTop: 2 }}>+ Añadir ejercicio</button>
                     </div>
                   ))}
                 </>
@@ -1417,7 +1519,7 @@ export default function App() {
 
       {editingExercise !== null && (() => {
         const { dayIdx, blockIdx, exIdx } = editingExercise;
-        return <ExerciseEditPanel exercise={routine[dayIdx].blocks[blockIdx].exercises[exIdx]} onSave={saveExerciseEdit} onClose={() => setEditingExercise(null)} />;
+        return <ExerciseEditPanel exercise={routine[dayIdx].blocks[blockIdx].exercises[exIdx]} blocks={routine[dayIdx].blocks} currentBlockIdx={blockIdx} onSave={saveExerciseEdit} onDelete={deleteExercise} onClose={() => setEditingExercise(null)} />;
       })()}
 
       {detailExercise && <ExerciseDetailPanel exercise={detailExercise} sessions={data.sessions} onClose={() => setDetailExercise(null)} onLog={(ex) => { openLog(ex); }} />}
