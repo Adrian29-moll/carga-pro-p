@@ -250,16 +250,16 @@ function Stepper({ value, onChange, step, min, unit }) {
   function startEdit() { setDraft(val === 0 ? "" : String(val)); setEditing(true); setTimeout(() => inputRef.current && inputRef.current.focus(), 0); }
   function commitEdit() { const p = parseFloat(draft); if (!isNaN(p) && p >= m) onChange(String(p)); setEditing(false); }
   return (
-    <div style={{ display: "flex", alignItems: "center", background: "#f9fafb", borderRadius: 12, border: editing ? "1.5px solid #f59e0b" : "1.5px solid #e5e7eb", overflow: "hidden", transition: "border-color .15s" }}>
-      <button onClick={() => onChange(String(Math.max(m, parseFloat((val - s).toFixed(2)))))} style={{ width: 36, height: 46, border: "none", background: "none", fontSize: 18, color: "#9ca3af", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+    <div style={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,0.05)", borderRadius: 12, border: editing ? "1.5px solid #f59e0b" : "1.5px solid rgba(255,255,255,0.1)", overflow: "hidden", transition: "border-color .15s" }}>
+      <button onClick={() => onChange(String(Math.max(m, parseFloat((val - s).toFixed(2)))))} style={{ width: 36, height: 46, border: "none", background: "none", fontSize: 18, color: "#64748b", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
       <div onClick={startEdit} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minWidth: 0, cursor: "text" }}>
         {editing
-          ? <input ref={inputRef} type="number" value={draft} onChange={e => setDraft(e.target.value)} onBlur={commitEdit} onKeyDown={e => e.key === "Enter" && commitEdit()} style={{ width: "100%", textAlign: "center", border: "none", background: "transparent", fontSize: 16, fontWeight: 700, color: "#111827", outline: "none", padding: 0, fontFamily: "'DM Sans', sans-serif", WebkitAppearance: "none" }} />
-          : <span style={{ fontSize: 16, fontWeight: 700, color: "#111827", lineHeight: 1 }}>{val || "0"}</span>
+          ? <input ref={inputRef} type="number" value={draft} onChange={e => setDraft(e.target.value)} onBlur={commitEdit} onKeyDown={e => e.key === "Enter" && commitEdit()} style={{ width: "100%", textAlign: "center", border: "none", background: "transparent", fontSize: 16, fontWeight: 700, color: "#f9fafb", outline: "none", padding: 0, fontFamily: "'DM Sans', sans-serif", WebkitAppearance: "none" }} />
+          : <span style={{ fontSize: 16, fontWeight: 700, color: "#f9fafb", lineHeight: 1 }}>{val || "0"}</span>
         }
-        <span style={{ fontSize: 9, color: editing ? "#f59e0b" : "#9ca3af", marginTop: 2, textTransform: "uppercase", letterSpacing: 0.5 }}>{editing ? "escribe" : unit}</span>
+        <span style={{ fontSize: 9, color: editing ? "#f59e0b" : "#64748b", marginTop: 2, textTransform: "uppercase", letterSpacing: 0.5 }}>{editing ? "escribe" : unit}</span>
       </div>
-      <button onClick={() => onChange(String(parseFloat((val + s).toFixed(2))))} style={{ width: 36, height: 46, border: "none", background: "none", fontSize: 18, color: "#111827", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>+</button>
+      <button onClick={() => onChange(String(parseFloat((val + s).toFixed(2))))} style={{ width: 36, height: 46, border: "none", background: "none", fontSize: 18, color: "#f9fafb", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>+</button>
     </div>
   );
 }
@@ -360,6 +360,10 @@ export default function App() {
   const [assistantMessages, setAssistantMessages] = useState(loadAssistantMessages);
   const [assistantInput, setAssistantInput] = useState("");
   const [assistantLoading, setAssistantLoading] = useState(false);
+  const [showDataMenu, setShowDataMenu] = useState(false);
+  const [dataMenuPos, setDataMenuPos] = useState({ top: 0, right: 0 });
+  const dataMenuBtnRef = useRef(null);
+  const importInputRef = useRef(null);
   const [weekSummary, setWeekSummary] = useState(null);
   const [weekSummaryLoading, setWeekSummaryLoading] = useState(false);
   const [routineDay, setRoutineDay] = useState(() => { const map = [6,0,1,2,3,4,5]; return map[new Date().getDay()]; });
@@ -431,6 +435,38 @@ export default function App() {
     setWeekSummaryLoading(false);
   }
 
+  function handleExport() {
+    const payload = { sessions: data.sessions, routine, weekOverrides, pinnedExercises };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `carga-pro-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setShowDataMenu(false);
+    showToast("Datos exportados");
+  }
+
+  function handleImport(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        if (parsed.sessions) setData(d => ({ ...d, sessions: parsed.sessions }));
+        if (parsed.routine) setRoutine(parsed.routine);
+        if (parsed.weekOverrides) setWeekOverrides(parsed.weekOverrides);
+        if (parsed.pinnedExercises) setPinnedExercises(parsed.pinnedExercises);
+        showToast("Datos importados correctamente");
+      } catch { showToast("Error al leer el archivo"); }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+    setShowDataMenu(false);
+  }
+
   function openLog(exercise) {
     setLogExercise(exercise);
     setSets([{ weight: "", reps: "", rir: undefined }]);
@@ -482,6 +518,7 @@ export default function App() {
 
   return (
     <div style={{ fontFamily: "'DM Sans', sans-serif", maxWidth: 430, margin: "0 auto", minHeight: "100vh", background: "#0d1117", paddingBottom: 90 }}>
+      <input ref={importInputRef} type="file" accept=".json" onChange={handleImport} style={{ display: "none" }} />
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
         *{box-sizing:border-box;margin:0;padding:0}
@@ -499,11 +536,27 @@ export default function App() {
       <div style={{ background: "linear-gradient(135deg, #111827, #0f1729)", padding: "48px 20px 16px", position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: -40, right: -20, width: 110, height: 110, borderRadius: "50%", background: "rgba(245,158,11,0.1)" }} />
         <div style={{ fontSize: 9, color: "#f59e0b", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", marginBottom: 4 }}>Tu tracker de fuerza</div>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-          <span style={{ fontSize: 26, fontWeight: 800, color: "#fff", fontFamily: "Syne, sans-serif" }}>CARGA</span>
-          <span style={{ fontSize: 26, fontWeight: 800, color: "#f59e0b", fontFamily: "Syne, sans-serif" }}>PRO</span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+            <span style={{ fontSize: 26, fontWeight: 800, color: "#fff", fontFamily: "Syne, sans-serif" }}>CARGA</span>
+            <span style={{ fontSize: 26, fontWeight: 800, color: "#f59e0b", fontFamily: "Syne, sans-serif" }}>PRO</span>
+          </div>
+          <div ref={dataMenuBtnRef}>
+            <button onClick={() => { if (dataMenuBtnRef.current) { const rect = dataMenuBtnRef.current.getBoundingClientRect(); setDataMenuPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right }); } setShowDataMenu(v => !v); }} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.08)", color: "#94a3b8", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>⇅</button>
+          </div>
         </div>
       </div>
+
+      {showDataMenu && (
+        <>
+          <div onClick={() => setShowDataMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 998 }} />
+          <div style={{ position: "fixed", top: dataMenuPos.top, right: dataMenuPos.right, background: "#1c2840", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, zIndex: 999, minWidth: 160, overflow: "hidden" }}>
+            <button onClick={handleExport} style={{ width: "100%", padding: "12px 16px", background: "none", border: "none", color: "#e5e7eb", fontSize: 14, fontWeight: 600, cursor: "pointer", textAlign: "left", fontFamily: "'DM Sans', sans-serif" }}>📤 Exportar datos</button>
+            <div style={{ height: 1, background: "rgba(255,255,255,0.07)" }} />
+            <button onClick={() => { importInputRef.current?.click(); setShowDataMenu(false); }} style={{ width: "100%", padding: "12px 16px", background: "none", border: "none", color: "#e5e7eb", fontSize: 14, fontWeight: 600, cursor: "pointer", textAlign: "left", fontFamily: "'DM Sans', sans-serif" }}>📥 Importar datos</button>
+          </div>
+        </>
+      )}
 
       <div style={{ padding: 16 }}>
 
@@ -700,7 +753,7 @@ export default function App() {
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, marginTop: 4 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: "#9ca3af", letterSpacing: 1.5, textTransform: "uppercase" }}>Esta semana</div>
-              <button onClick={() => setPlannerMode(p => !p)} style={{ padding: "6px 14px", borderRadius: 99, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: plannerMode ? "#111827" : "#f3f4f6", color: plannerMode ? "#f59e0b" : "#6b7280", transition: "all .15s" }}>
+              <button onClick={() => setPlannerMode(p => !p)} style={{ padding: "6px 14px", borderRadius: 99, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: plannerMode ? "#f59e0b" : "rgba(255,255,255,0.08)", color: plannerMode ? "#111" : "#94a3b8", transition: "all .15s" }}>
                 {plannerMode ? "✓ Listo" : "Reorganizar semana"}
               </button>
             </div>
@@ -786,8 +839,9 @@ export default function App() {
                       <div style={{ fontSize: 10, fontWeight: 700, color: "#9ca3af", letterSpacing: 1, textTransform: "uppercase", marginBottom: 8, paddingLeft: 2 }}>Bloque {bi + 1} — {block.name}</div>
                       {block.exercises.map((ex, ei) => {
                         const lastLog = getLastSession(data.sessions, ex.name);
+                        const doneToday = data.sessions.some(s => s.exercise === ex.name && s.date === new Date().toISOString().slice(0, 10));
                         return (
-                          <div key={ei} style={{ background: "#1c2840", borderRadius: 14, padding: "12px 14px", marginBottom: 8, border: ex.anchor ? "1.5px solid #f59e0b" : "1px solid rgba(255,255,255,0.07)" }}>
+                          <div key={ei} style={{ background: "#1c2840", borderRadius: 14, padding: "12px 14px", marginBottom: 8, border: ex.anchor ? "1.5px solid #f59e0b" : doneToday ? "1px solid rgba(74,222,128,0.25)" : "1px solid rgba(255,255,255,0.07)" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                               <div style={{ flex: 1 }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
@@ -796,7 +850,10 @@ export default function App() {
                                 </div>
                                 {ex.note && <div style={{ fontSize: 11, color: "#64748b", marginTop: 3, fontStyle: "italic" }}>{ex.note}</div>}
                               </div>
-                              <button onClick={() => setEditingExercise({ dayIdx: sessionIdx, blockIdx: bi, exIdx: ei })} style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 700, color: "#94a3b8", cursor: "pointer", flexShrink: 0, marginLeft: 8 }}>Editar</button>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: 8 }}>
+                                {doneToday && <span style={{ background: "rgba(74,222,128,0.15)", color: "#4ade80", fontSize: 11, fontWeight: 700, borderRadius: 99, padding: "3px 10px" }}>✓ Hecho</span>}
+                                <button onClick={() => setEditingExercise({ dayIdx: sessionIdx, blockIdx: bi, exIdx: ei })} style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 700, color: "#94a3b8", cursor: "pointer" }}>Editar</button>
+                              </div>
                             </div>
                             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: lastLog ? 8 : 10 }}>
                               {[["Series", ex.sets], ["Reps", ex.reps], ["RPE", ex.rpe], ["Descanso", ex.rest]].map(([l, v]) => v && (
@@ -815,7 +872,7 @@ export default function App() {
                                 <span style={{ fontSize: 10, color: "#64748b", marginLeft: "auto" }}>{formatDate(lastLog.date)}</span>
                               </div>
                             )}
-                            <button onClick={() => openLog(ex.name)} style={{ width: "100%", padding: "8px", borderRadius: 10, border: "none", background: ex.anchor ? "#111827" : "rgba(255,255,255,0.08)", color: ex.anchor ? "#f59e0b" : "#e2e8f0", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Registrar</button>
+                            <button onClick={() => openLog(ex.name)} style={{ width: "100%", padding: "8px", borderRadius: 10, border: "none", background: doneToday ? "rgba(74,222,128,0.15)" : ex.anchor ? "#111827" : "rgba(255,255,255,0.08)", color: doneToday ? "#4ade80" : ex.anchor ? "#f59e0b" : "#e2e8f0", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{doneToday ? "✓ Registrado" : "+ Registrar"}</button>
                           </div>
                         );
                       })}
@@ -830,7 +887,7 @@ export default function App() {
         {view === "history" && (
           <div className="sec">
             <div style={{ fontSize: 10, fontWeight: 700, color: "#9ca3af", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 12, marginTop: 4 }}>Historial</div>
-            <select value={histFilter} onChange={e => setHistFilter(e.target.value)} style={{ ...fld, marginBottom: 14, background: "#fff" }}>
+            <select value={histFilter} onChange={e => setHistFilter(e.target.value)} style={{ ...fld, marginBottom: 14 }}>
               <option value="">Todos los ejercicios</option>
               {allRoutineExercises.map(ex => <option key={ex}>{ex}</option>)}
             </select>
@@ -895,7 +952,7 @@ export default function App() {
                 <div style={{ fontSize: 10, fontWeight: 700, color: "#9ca3af", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 10 }}>Preguntas rapidas</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {["Como va mi progresion esta semana?", "En que ejercicio estoy mas estancado?", "Estoy haciendo suficiente volumen?", "Cuando deberia descargar?", "Analiza mi ultima sesion", "Planifícame la semana que viene"].map(q => (
-                    <button key={q} onClick={() => sendAssistantMessage(q)} style={{ padding: "8px 14px", borderRadius: 99, border: "1.5px solid #e5e7eb", background: "#fff", fontSize: 12, fontWeight: 600, color: "#374151", cursor: "pointer", textAlign: "left" }}>{q}</button>
+                    <button key={q} onClick={() => sendAssistantMessage(q)} style={{ padding: "8px 14px", borderRadius: 99, border: "1.5px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", fontSize: 12, fontWeight: 600, color: "#cbd5e1", cursor: "pointer", textAlign: "left" }}>{q}</button>
                   ))}
                 </div>
               </div>
@@ -920,7 +977,7 @@ export default function App() {
                   items.push(
                     <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}>
                       {msg.role === "assistant" && <div style={{ width: 28, height: 28, borderRadius: 8, background: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, marginRight: 8, flexShrink: 0, alignSelf: "flex-end" }}>✦</div>}
-                      <div style={{ maxWidth: "80%", padding: "10px 14px", borderRadius: msg.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px", background: msg.role === "user" ? "#111827" : "#fff", color: msg.role === "user" ? "#fff" : "#111827", fontSize: 13, lineHeight: 1.7, border: msg.role === "assistant" ? "1px solid #efefef" : "none" }}>
+                      <div style={{ maxWidth: "80%", padding: "10px 14px", borderRadius: msg.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px", background: msg.role === "user" ? "#1e3a5f" : "rgba(255,255,255,0.07)", color: "#f9fafb", fontSize: 13, lineHeight: 1.7, border: msg.role === "assistant" ? "1px solid rgba(255,255,255,0.08)" : "none" }}>
                         {msg.role === "assistant"
                           ? <span dangerouslySetInnerHTML={renderMarkdown(msg.content)} />
                           : msg.content}
@@ -933,17 +990,17 @@ export default function App() {
               {assistantLoading && (
                 <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
                   <div style={{ width: 28, height: 28, borderRadius: 8, background: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>✦</div>
-                  <div style={{ background: "#fff", border: "1px solid #efefef", borderRadius: "18px 18px 18px 4px", padding: "10px 16px" }}>
-                    <span style={{ display: "inline-block", animation: "spin 1s linear infinite", color: "#9ca3af" }}>◌</span>
+                  <div style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "18px 18px 18px 4px", padding: "10px 16px" }}>
+                    <span style={{ display: "inline-block", animation: "spin 1s linear infinite", color: "#64748b" }}>◌</span>
                   </div>
                 </div>
               )}
             </div>
 
             <div style={{ flexShrink: 0, display: "flex", gap: 8, paddingBottom: 4 }}>
-              {assistantMessages.length > 0 && <button onClick={() => setAssistantMessages([])} style={{ width: 46, height: 46, borderRadius: 12, border: "1.5px solid #e5e7eb", background: "#fff", color: "#9ca3af", fontSize: 16, cursor: "pointer", flexShrink: 0 }}>↺</button>}
-              <input placeholder="Pregunta lo que quieras..." value={assistantInput} onChange={e => setAssistantInput(e.target.value)} onKeyDown={e => e.key === "Enter" && !assistantLoading && sendAssistantMessage(assistantInput)} style={{ flex: 1, padding: "12px 16px", borderRadius: 12, border: "1.5px solid #e5e7eb", background: "#fff", fontSize: 14, fontFamily: "'DM Sans', sans-serif", outline: "none", color: "#111827" }} />
-              <button onClick={() => sendAssistantMessage(assistantInput)} disabled={assistantLoading || !assistantInput.trim()} style={{ width: 46, height: 46, borderRadius: 12, border: "none", background: assistantLoading || !assistantInput.trim() ? "#f3f4f6" : "#111827", color: assistantLoading || !assistantInput.trim() ? "#9ca3af" : "#f59e0b", fontSize: 18, cursor: "pointer", flexShrink: 0 }}>→</button>
+              {assistantMessages.length > 0 && <button onClick={() => setAssistantMessages([])} style={{ width: 46, height: 46, borderRadius: 12, border: "1.5px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", color: "#64748b", fontSize: 16, cursor: "pointer", flexShrink: 0 }}>↺</button>}
+              <input placeholder="Pregunta lo que quieras..." value={assistantInput} onChange={e => setAssistantInput(e.target.value)} onKeyDown={e => e.key === "Enter" && !assistantLoading && sendAssistantMessage(assistantInput)} style={{ flex: 1, padding: "12px 16px", borderRadius: 12, border: "1.5px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", fontSize: 14, fontFamily: "'DM Sans', sans-serif", outline: "none", color: "#f9fafb" }} />
+              <button onClick={() => sendAssistantMessage(assistantInput)} disabled={assistantLoading || !assistantInput.trim()} style={{ width: 46, height: 46, borderRadius: 12, border: "none", background: assistantLoading || !assistantInput.trim() ? "rgba(255,255,255,0.06)" : "#f59e0b", color: assistantLoading || !assistantInput.trim() ? "#475569" : "#111", fontSize: 18, cursor: "pointer", flexShrink: 0 }}>→</button>
             </div>
           </div>
         )}
