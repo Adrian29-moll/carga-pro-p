@@ -4,6 +4,7 @@ const STORAGE_KEY = "gym_tracker_v2";
 const ROUTINE_KEY = "gym_routine_v1";
 const OVERRIDES_KEY = "gym_week_overrides";
 const ASSISTANT_MESSAGES_KEY = "gym_assistant_messages";
+const TEMPLATES_KEY = "gym_templates_v1";
 
 const DEFAULT_ROUTINE = [
   { day: "Lun", label: "Push A", sub: "Fuerza pectoral", duration: "~60 min", blocks: [
@@ -341,6 +342,180 @@ function getDateLabel(isoDate) {
   return d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" });
 }
 
+function ExerciseDetailPanel({ exercise, sessions, onClose, onLog }) {
+  const [tab, setTab] = useState("graficas");
+  const hist = [...sessions.filter(s => s.exercise === exercise)].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const volData = hist.slice(-12).map(s => ({ date: s.date, vol: calcVolume(s.sets) }));
+  const maxData = hist.slice(-12).map(s => ({ date: s.date, max: Math.max(...s.sets.map(x => parseFloat(x.weight) || 0)) }));
+  const bestVol = hist.length ? Math.max(...hist.map(s => calcVolume(s.sets))) : 0;
+  const bestMax = hist.length ? Math.max(...hist.flatMap(s => s.sets.map(x => parseFloat(x.weight) || 0))) : 0;
+  const W = 280, H = 72;
+  const maxVol = Math.max(...volData.map(d => d.vol), 1);
+  const maxMaxW = Math.max(...maxData.map(d => d.max), 1);
+  const minMaxW = Math.min(...maxData.map(d => d.max), maxMaxW - 1);
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(3px)" }} />
+      <div style={{ position: "relative", background: "#111827", borderRadius: "24px 24px 0 0", padding: "0 20px 36px", maxHeight: "86vh", overflowY: "auto", animation: "slideUp .28s cubic-bezier(.32,.72,0,1)" }}>
+        <div style={{ display: "flex", justifyContent: "center", padding: "14px 0 10px" }}>
+          <div style={{ width: 40, height: 4, borderRadius: 99, background: "rgba(255,255,255,0.18)" }} />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", fontFamily: "Syne, sans-serif" }}>{exercise}</div>
+          <button onClick={() => onLog(exercise)} style={{ padding: "8px 16px", borderRadius: 10, border: "none", background: "#f59e0b", color: "#111", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+ Log</button>
+        </div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          {[["Sesiones", hist.length], ["Mejor vol.", bestVol.toFixed(0) + " kg"], ["Máx. peso", bestMax + " kg"]].map(([l, v]) => (
+            <div key={l} style={{ flex: 1, background: "rgba(255,255,255,0.06)", borderRadius: 12, padding: "10px 8px", textAlign: "center", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div style={{ fontSize: 9, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 }}>{l}</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#f9fafb" }}>{v}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          {["graficas", "historial"].map(t => (
+            <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: "9px", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, background: tab === t ? "#f59e0b" : "rgba(255,255,255,0.06)", color: tab === t ? "#111" : "#64748b" }}>
+              {t === "graficas" ? "Gráficas" : "Historial"}
+            </button>
+          ))}
+        </div>
+        {tab === "graficas" && (
+          volData.length >= 2 ? (
+            <>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8 }}>Volumen por sesión (kg)</div>
+              <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: "12px 12px 8px", marginBottom: 16, border: "1px solid rgba(255,255,255,0.07)" }}>
+                <svg width="100%" viewBox={`0 0 ${W} ${H + 20}`} style={{ overflow: "visible" }}>
+                  {volData.map((d, i) => {
+                    const x = (i / Math.max(volData.length - 1, 1)) * (W - 20) + 10;
+                    const barH = Math.max(4, (d.vol / maxVol) * H);
+                    return (
+                      <g key={i}>
+                        <rect x={x - 7} y={H - barH} width={14} height={barH} rx={3} fill={i === volData.length - 1 ? "#f59e0b" : "rgba(255,255,255,0.18)"} />
+                        <text x={x} y={H + 14} textAnchor="middle" fontSize={7} fill="#64748b">{formatDate(d.date).slice(0, 5)}</text>
+                      </g>
+                    );
+                  })}
+                </svg>
+              </div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8 }}>Peso máximo (kg)</div>
+              <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: "12px 12px 8px", marginBottom: 16, border: "1px solid rgba(255,255,255,0.07)" }}>
+                <svg width="100%" viewBox={`0 0 ${W} ${H + 20}`} style={{ overflow: "visible" }}>
+                  {(() => {
+                    const range = maxMaxW - minMaxW || 1;
+                    const pts = maxData.map((d, i) => ({ x: (i / Math.max(maxData.length - 1, 1)) * (W - 20) + 10, y: H - ((d.max - minMaxW) / range) * (H - 8) - 4, d }));
+                    const pathD = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+                    return (
+                      <>
+                        <path d={pathD} fill="none" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        {pts.map((p, i) => (
+                          <g key={i}>
+                            <circle cx={p.x} cy={p.y} r={i === pts.length - 1 ? 4 : 2.5} fill={i === pts.length - 1 ? "#60a5fa" : "#1e40af"} stroke="#60a5fa" strokeWidth="1" />
+                            <text x={p.x} y={H + 14} textAnchor="middle" fontSize={7} fill="#64748b">{formatDate(p.d.date).slice(0, 5)}</text>
+                          </g>
+                        ))}
+                      </>
+                    );
+                  })()}
+                </svg>
+              </div>
+            </>
+          ) : (
+            <div style={{ textAlign: "center", padding: "30px 0", color: "#9ca3af", fontSize: 13 }}>Necesitas al menos 2 sesiones para ver gráficas</div>
+          )
+        )}
+        {tab === "historial" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {hist.length === 0
+              ? <div style={{ textAlign: "center", padding: "30px 0", color: "#9ca3af", fontSize: 13 }}>Sin sesiones registradas</div>
+              : [...hist].reverse().map(s => (
+                <div key={s.id} style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "10px 12px", border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#f9fafb" }}>{formatDate(s.date)}</span>
+                    <span style={{ fontSize: 11, color: "#64748b" }}>Vol: {calcVolume(s.sets).toFixed(0)} kg</span>
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    {s.sets.map((x, i) => <span key={i} style={{ background: "rgba(255,255,255,0.08)", borderRadius: 6, padding: "2px 8px", fontSize: 11, fontWeight: 600, color: "#e2e8f0" }}>{x.weight}×{x.reps}{x.rir !== undefined ? ` RIR${x.rir}` : ""}</span>)}
+                  </div>
+                  {s.notes && <div style={{ fontSize: 11, color: "#64748b", marginTop: 6, fontStyle: "italic" }}>{s.notes}</div>}
+                </div>
+              ))
+            }
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TemplateEditorPanel({ template, onSave, onDelete, onClose }) {
+  const [form, setForm] = useState(template.id ? { ...template } : {
+    label: "", sub: "", duration: "",
+    blocks: [{ name: "Bloque 1", exercises: [{ name: "", sets: 3, reps: "8-10", rpe: "7", rest: "2 min" }] }]
+  });
+  function updateField(f, v) { setForm(p => ({ ...p, [f]: v })); }
+  function addBlock() { setForm(p => ({ ...p, blocks: [...p.blocks, { name: `Bloque ${p.blocks.length + 1}`, exercises: [{ name: "", sets: 3, reps: "8-10", rpe: "7", rest: "2 min" }] }] })); }
+  function removeBlock(bi) { setForm(p => ({ ...p, blocks: p.blocks.filter((_, i) => i !== bi) })); }
+  function updateBlock(bi, f, v) { setForm(p => ({ ...p, blocks: p.blocks.map((b, i) => i === bi ? { ...b, [f]: v } : b) })); }
+  function addExercise(bi) { setForm(p => ({ ...p, blocks: p.blocks.map((b, i) => i === bi ? { ...b, exercises: [...b.exercises, { name: "", sets: 3, reps: "8-10", rpe: "7", rest: "2 min" }] } : b) })); }
+  function removeExercise(bi, ei) { setForm(p => ({ ...p, blocks: p.blocks.map((b, i) => i === bi ? { ...b, exercises: b.exercises.filter((_, j) => j !== ei) } : b) })); }
+  function updateExercise(bi, ei, f, v) { setForm(p => ({ ...p, blocks: p.blocks.map((b, i) => i === bi ? { ...b, exercises: b.exercises.map((e, j) => j === ei ? { ...e, [f]: v } : e) } : b) })); }
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 210, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(3px)" }} />
+      <div style={{ position: "relative", background: "#111827", borderRadius: "24px 24px 0 0", padding: "0 20px 40px", maxHeight: "92vh", overflowY: "auto", animation: "slideUp .25s cubic-bezier(.32,.72,0,1)" }}>
+        <div style={{ display: "flex", justifyContent: "center", padding: "14px 0 8px" }}>
+          <div style={{ width: 36, height: 4, borderRadius: 99, background: "rgba(255,255,255,0.15)" }} />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", fontFamily: "Syne, sans-serif" }}>{template.id ? "Editar plantilla" : "Nueva plantilla"}</div>
+          {template.id && <button onClick={() => onDelete(template.id)} style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, color: "#f87171", cursor: "pointer" }}>Eliminar</button>}
+        </div>
+        <label style={lbl}>Nombre de la plantilla</label>
+        <input value={form.label} onChange={e => updateField("label", e.target.value)} style={{ ...fld, marginBottom: 12 }} placeholder="ej. Push A alternativo" />
+        <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+          <div style={{ flex: 1 }}>
+            <label style={lbl}>Descripción</label>
+            <input value={form.sub || ""} onChange={e => updateField("sub", e.target.value)} style={fld} placeholder="ej. Fuerza pectoral" />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={lbl}>Duración</label>
+            <input value={form.duration || ""} onChange={e => updateField("duration", e.target.value)} style={fld} placeholder="ej. ~60 min" />
+          </div>
+        </div>
+        {form.blocks.map((block, bi) => (
+          <div key={bi} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "12px 14px", marginBottom: 12, border: "1px solid rgba(255,255,255,0.08)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <input value={block.name} onChange={e => updateBlock(bi, "name", e.target.value)} style={{ ...fld, flex: 1 }} placeholder={`Bloque ${bi + 1}`} />
+              {form.blocks.length > 1 && <button onClick={() => removeBlock(bi)} style={{ background: "none", border: "none", color: "#64748b", fontSize: 18, cursor: "pointer", flexShrink: 0 }}>✕</button>}
+            </div>
+            {block.exercises.map((ex, ei) => (
+              <div key={ei} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "10px", marginBottom: 8, border: "1px solid rgba(255,255,255,0.06)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <input value={ex.name} onChange={e => updateExercise(bi, ei, "name", e.target.value)} style={{ ...fld, flex: 1 }} placeholder="Nombre del ejercicio" />
+                  {block.exercises.length > 1 && <button onClick={() => removeExercise(bi, ei)} style={{ background: "none", border: "none", color: "#64748b", fontSize: 15, cursor: "pointer", flexShrink: 0 }}>✕</button>}
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {[["Series", "sets", "3"], ["Reps", "reps", "8-10"], ["RPE", "rpe", "7"], ["Descanso", "rest", "2 min"]].map(([label, field, ph]) => (
+                    <div key={field} style={{ flex: 1 }}>
+                      <div style={{ fontSize: 8, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 3 }}>{label}</div>
+                      <input value={ex[field] || ""} onChange={e => updateExercise(bi, ei, field, e.target.value)} style={{ ...fld, padding: "7px 8px", fontSize: 12 }} placeholder={ph} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <button onClick={() => addExercise(bi)} style={{ width: "100%", padding: "8px", borderRadius: 10, border: "1.5px dashed rgba(255,255,255,0.12)", background: "none", color: "#64748b", fontSize: 12, cursor: "pointer", marginTop: 4 }}>+ Añadir ejercicio</button>
+          </div>
+        ))}
+        <button onClick={addBlock} style={{ width: "100%", padding: "10px", borderRadius: 12, border: "1.5px dashed rgba(255,255,255,0.12)", background: "none", color: "#64748b", fontSize: 13, cursor: "pointer", marginBottom: 16 }}>+ Añadir bloque</button>
+        <button onClick={() => onSave(form)} style={{ width: "100%", padding: 15, borderRadius: 14, border: "none", background: "#f59e0b", color: "#111", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+          {template.id ? "Guardar cambios" : "Crear plantilla"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [data, setData] = useState(loadData);
   const [routine, setRoutine] = useState(loadRoutine);
@@ -373,6 +548,10 @@ export default function App() {
   const [dragOver, setDragOver] = useState(null);
   const [editingDaySession, setEditingDaySession] = useState(null);
   const [weekOverrides, setWeekOverrides] = useState(() => { try { return JSON.parse(localStorage.getItem(OVERRIDES_KEY) || "{}"); } catch { return {}; } });
+  const [detailExercise, setDetailExercise] = useState(null);
+  const [templates, setTemplates] = useState(() => { try { return JSON.parse(localStorage.getItem(TEMPLATES_KEY) || "[]"); } catch { return []; } });
+  const [editingTemplate, setEditingTemplate] = useState(null);
+  const touchStartX = useRef(null);
 
   useEffect(() => { saveData(data); }, [data]);
   useEffect(() => { saveRoutine(routine); }, [routine]);
@@ -386,6 +565,7 @@ export default function App() {
       localStorage.setItem(ASSISTANT_MESSAGES_KEY, JSON.stringify(filtered));
     }
   }, [assistantMessages]);
+  useEffect(() => { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(templates)); }, [templates]);
 
   function showToast(msg) { setToast(msg); setTimeout(() => setToast(""), 2200); }
 
@@ -465,6 +645,39 @@ export default function App() {
     reader.readAsText(file);
     e.target.value = "";
     setShowDataMenu(false);
+  }
+
+  function saveTemplate(form) {
+    if (form.id) {
+      setTemplates(prev => prev.map(t => t.id === form.id ? form : t));
+    } else {
+      setTemplates(prev => [...prev, { ...form, id: "t-" + Date.now() }]);
+    }
+    setEditingTemplate(null);
+    showToast("Plantilla guardada");
+  }
+
+  function deleteTemplate(id) {
+    setTemplates(prev => prev.filter(t => t.id !== id));
+    setEditingTemplate(null);
+    showToast("Plantilla eliminada");
+  }
+
+  function handleSwipeTouchStart(e) { touchStartX.current = e.touches[0].clientX; }
+
+  function handleSwipeTouchEnd(e) {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(dx) < 60) return;
+    if (dx < 0) setRoutineDay(d => (d + 1) % routine.length);
+    else setRoutineDay(d => (d - 1 + routine.length) % routine.length);
+  }
+
+  function resolveSession(key) {
+    if (String(key).startsWith("t-")) return templates.find(t => t.id === key) || null;
+    const idx = parseInt(key);
+    return isNaN(idx) ? null : routine[idx] || null;
   }
 
   function openLog(exercise) {
@@ -617,7 +830,7 @@ export default function App() {
                 return (
                   <div key={exName} style={{ background: "#1c2840", borderRadius: 18, padding: "14px 14px 12px", border: "1.5px solid rgba(245,158,11,0.12)", display: "flex", flexDirection: "column", gap: 8 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: "#f9fafb", lineHeight: 1.3, maxWidth: "70%" }}>{exName}</div>
+                      <div onClick={() => setDetailExercise(exName)} style={{ fontSize: 12, fontWeight: 700, color: "#f9fafb", lineHeight: 1.3, maxWidth: "70%", cursor: "pointer" }}>{exName}</div>
                       {trend && <span style={{ fontSize: 14, fontWeight: 900, color: trend === "↑" ? "#4ade80" : trend === "↓" ? "#f87171" : "#9ca3af" }}>{trend}</span>}
                     </div>
                     {dayLabel && <div style={{ fontSize: 9, color: "#f59e0b", fontWeight: 700, textTransform: "uppercase" }}>{dayLabel}</div>}
@@ -723,11 +936,11 @@ export default function App() {
         )}
 
         {view === "routine" && (
-          <div className="sec">
+          <div className="sec" onTouchStart={handleSwipeTouchStart} onTouchEnd={handleSwipeTouchEnd}>
             {editingDaySession !== null && (
               <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
                 <div onClick={() => setEditingDaySession(null)} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(2px)" }} />
-                <div style={{ position: "relative", background: "#111827", borderRadius: "22px 22px 0 0", padding: "0 20px 36px", animation: "slideUp .25s cubic-bezier(.32,.72,0,1)" }}>
+                <div style={{ position: "relative", background: "#111827", borderRadius: "22px 22px 0 0", padding: "0 20px 36px", maxHeight: "75vh", overflowY: "auto", animation: "slideUp .25s cubic-bezier(.32,.72,0,1)" }}>
                   <div style={{ display: "flex", justifyContent: "center", padding: "14px 0 8px" }}>
                     <div style={{ width: 36, height: 4, borderRadius: 99, background: "rgba(255,255,255,0.15)" }} />
                   </div>
@@ -744,6 +957,27 @@ export default function App() {
                       </button>
                     );
                   })}
+                  {templates.length > 0 && (
+                    <>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, margin: "14px 0 8px" }}>Mis plantillas</div>
+                      {templates.map(t => {
+                        const isSelected = getSessionForDay(editingDaySession) === t.id;
+                        return (
+                          <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                            <button onClick={() => { setSessionForDay(editingDaySession, t.id); setEditingDaySession(null); }} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px", borderRadius: 14, cursor: "pointer", background: isSelected ? "rgba(245,158,11,0.15)" : "rgba(255,255,255,0.05)", border: isSelected ? "1.5px solid #f59e0b" : "1.5px solid rgba(255,255,255,0.08)" }}>
+                              <div style={{ textAlign: "left" }}>
+                                <div style={{ fontSize: 14, fontWeight: 700, color: "#f9fafb" }}>{t.label}</div>
+                                <div style={{ fontSize: 11, color: "#64748b" }}>{t.sub} · {t.duration}</div>
+                              </div>
+                              {isSelected && <span style={{ fontSize: 16, color: "#f59e0b" }}>✓</span>}
+                            </button>
+                            <button onClick={() => { setEditingDaySession(null); setEditingTemplate(t); }} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", color: "#94a3b8", cursor: "pointer", fontSize: 14, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>✎</button>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
+                  <button onClick={() => { setEditingDaySession(null); setEditingTemplate({}); }} style={{ width: "100%", padding: "11px", borderRadius: 12, border: "1.5px dashed rgba(255,255,255,0.15)", background: "none", color: "#64748b", fontSize: 13, cursor: "pointer", marginTop: 4 }}>+ Nueva plantilla</button>
                   {getWeekKey(editingDaySession) in weekOverrides && (
                     <button onClick={() => { resetSessionForDay(editingDaySession); setEditingDaySession(null); }} style={{ width: "100%", padding: "11px", borderRadius: 12, border: "none", background: "none", color: "#64748b", fontSize: 13, cursor: "pointer", marginTop: 4 }}>Volver a la sesion por defecto</button>
                   )}
@@ -763,7 +997,7 @@ export default function App() {
                 <div style={{ fontSize: 12, color: "#64748b", marginBottom: 14 }}>Arrastra las sesiones entre dias para reorganizar tu semana</div>
                 {routine.map((d, i) => {
                   const sessionIdx = getSessionForDay(i);
-                  const session = routine[sessionIdx];
+                  const session = resolveSession(sessionIdx) || routine[i];
                   const isOverridden = getWeekKey(i) in weekOverrides && weekOverrides[getWeekKey(i)] !== i;
                   const todayIdx = [6,0,1,2,3,4,5][new Date().getDay()];
                   const isToday = todayIdx === i;
@@ -793,25 +1027,32 @@ export default function App() {
               </div>
             )}
 
-            <div style={{ display: "flex", gap: 6, marginBottom: 16, overflowX: "auto", paddingBottom: 4 }}>
-              {routine.map((d, i) => {
-                const todayIdx = [6,0,1,2,3,4,5][new Date().getDay()];
-                const isToday = todayIdx === i;
-                const sessionIdx = getSessionForDay(i);
-                const isOverridden = getWeekKey(i) in weekOverrides && weekOverrides[getWeekKey(i)] !== i;
-                return (
-                  <button key={i} onClick={() => setRoutineDay(i)} style={{ flexShrink: 0, padding: "8px 12px", borderRadius: 12, cursor: "pointer", fontSize: 12, fontWeight: 700, background: routineDay === i ? "#1e3a5f" : isToday ? "rgba(245,158,11,0.1)" : "rgba(255,255,255,0.05)", color: routineDay === i ? "#f59e0b" : isToday ? "#f59e0b" : "#64748b", border: routineDay === i ? "1.5px solid rgba(245,158,11,0.4)" : isToday && routineDay !== i ? "1.5px solid rgba(245,158,11,0.3)" : isOverridden ? "1.5px solid #a78bfa" : "1.5px solid transparent", position: "relative", transition: "all .15s" }}>
-                    <div>{d.day}</div>
-                    <div style={{ fontSize: 9, fontWeight: 600, marginTop: 2, opacity: .8 }}>{routine[sessionIdx].label.split(" ")[0]}</div>
-                    {isOverridden && <div style={{ position: "absolute", top: 4, right: 4, width: 6, height: 6, borderRadius: "50%", background: "#a78bfa" }} />}
-                  </button>
-                );
-              })}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 16 }}>
+              <button onClick={() => setRoutineDay(d => (d - 1 + routine.length) % routine.length)} style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", color: "#64748b", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>←</button>
+              <div style={{ display: "flex", gap: 6, flex: 1, overflowX: "auto", paddingBottom: 4 }}>
+                {routine.map((d, i) => {
+                  const todayIdx = [6,0,1,2,3,4,5][new Date().getDay()];
+                  const isToday = todayIdx === i;
+                  const sessionKey = getSessionForDay(i);
+                  const isOverridden = getWeekKey(i) in weekOverrides && weekOverrides[getWeekKey(i)] !== i;
+                  const sessionLabel = (resolveSession(sessionKey) || routine[i]).label.split(" ")[0];
+                  return (
+                    <button key={i} onClick={() => setRoutineDay(i)} style={{ flexShrink: 0, padding: "8px 12px", borderRadius: 12, cursor: "pointer", fontSize: 12, fontWeight: 700, background: routineDay === i ? "#1e3a5f" : isToday ? "rgba(245,158,11,0.1)" : "rgba(255,255,255,0.05)", color: routineDay === i ? "#f59e0b" : isToday ? "#f59e0b" : "#64748b", border: routineDay === i ? "1.5px solid rgba(245,158,11,0.4)" : isToday && routineDay !== i ? "1.5px solid rgba(245,158,11,0.3)" : isOverridden ? "1.5px solid #a78bfa" : "1.5px solid transparent", position: "relative", transition: "all .15s" }}>
+                      <div>{d.day}</div>
+                      <div style={{ fontSize: 9, fontWeight: 600, marginTop: 2, opacity: .8 }}>{sessionLabel}</div>
+                      {isOverridden && <div style={{ position: "absolute", top: 4, right: 4, width: 6, height: 6, borderRadius: "50%", background: "#a78bfa" }} />}
+                    </button>
+                  );
+                })}
+              </div>
+              <button onClick={() => setRoutineDay(d => (d + 1) % routine.length)} style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", color: "#64748b", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>→</button>
             </div>
 
             {(() => {
-              const sessionIdx = getSessionForDay(routineDay);
-              const day = routine[sessionIdx];
+              const sessionKey = getSessionForDay(routineDay);
+              const isTemplateSession = String(sessionKey).startsWith("t-");
+              const day = resolveSession(sessionKey) || routine[routineDay];
+              const sessionIdx = isTemplateSession ? routineDay : parseInt(sessionKey);
               const isOverridden = getWeekKey(routineDay) in weekOverrides && weekOverrides[getWeekKey(routineDay)] !== routineDay;
               if (day.rest) return (
                 <>
@@ -852,7 +1093,7 @@ export default function App() {
                               </div>
                               <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: 8 }}>
                                 {doneToday && <span style={{ background: "rgba(74,222,128,0.15)", color: "#4ade80", fontSize: 11, fontWeight: 700, borderRadius: 99, padding: "3px 10px" }}>✓ Hecho</span>}
-                                <button onClick={() => setEditingExercise({ dayIdx: sessionIdx, blockIdx: bi, exIdx: ei })} style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 700, color: "#94a3b8", cursor: "pointer" }}>Editar</button>
+                                {!isTemplateSession && <button onClick={() => setEditingExercise({ dayIdx: sessionIdx, blockIdx: bi, exIdx: ei })} style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 700, color: "#94a3b8", cursor: "pointer" }}>Editar</button>}
                               </div>
                             </div>
                             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: lastLog ? 8 : 10 }}>
@@ -1022,6 +1263,9 @@ export default function App() {
       })()}
 
       {aiExercise && <AIPanel exercise={aiExercise} sessions={data.sessions} onClose={() => setAiExercise(null)} />}
+
+      {detailExercise && <ExerciseDetailPanel exercise={detailExercise} sessions={data.sessions} onClose={() => setDetailExercise(null)} onLog={openLog} />}
+      {editingTemplate !== null && <TemplateEditorPanel template={editingTemplate} onSave={saveTemplate} onDelete={deleteTemplate} onClose={() => setEditingTemplate(null)} />}
 
       {toast && (
         <div style={{ position: "fixed", bottom: 100, left: "50%", transform: "translateX(-50%)", background: "#111827", color: "#fff", borderRadius: 12, padding: "12px 22px", fontSize: 14, fontWeight: 600, zIndex: 999, animation: "toastFade 2.2s ease forwards", whiteSpace: "nowrap" }}>
