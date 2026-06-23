@@ -265,6 +265,84 @@ function Stepper({ value, onChange, step, min, unit }) {
   );
 }
 
+function SliderInput({ value, onChange, step, min, max, unit }) {
+  const values = useMemo(() => {
+    const arr = [];
+    const n = Math.round((max - min) / step);
+    for (let i = 0; i <= n; i++) arr.push(Math.round((min + i * step) * 10000) / 10000);
+    return arr;
+  }, [min, max, step]);
+
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [dragOffset, setDragOffset] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const inputRef = useRef(null);
+  const startYRef = useRef(0);
+
+  const ITEM_H = 36;
+  const HALF = 2;
+
+  const currentIdx = useMemo(() => {
+    const v = parseFloat(value);
+    if (isNaN(v)) return 0;
+    return Math.max(0, Math.min(values.length - 1, Math.round((v - min) / step)));
+  }, [value, values, min, step]);
+
+  function goToIdx(raw) {
+    const i = Math.max(0, Math.min(values.length - 1, Math.round(raw)));
+    onChange(String(values[i]));
+  }
+
+  function onTouchStart(e) { startYRef.current = e.touches[0].clientY; setDragging(true); setDragOffset(0); }
+  function onTouchMove(e) { e.preventDefault(); setDragOffset(e.touches[0].clientY - startYRef.current); }
+  function onTouchEnd() { goToIdx(currentIdx - Math.round(dragOffset / ITEM_H)); setDragOffset(0); setDragging(false); }
+  function onWheel(e) { e.preventDefault(); goToIdx(currentIdx + (e.deltaY > 0 ? 1 : -1)); }
+
+  function startEdit() {
+    const v = parseFloat(value);
+    setDraft(isNaN(v) ? "" : String(v));
+    setEditing(true);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }
+
+  function commitEdit() {
+    const p = parseFloat(draft);
+    if (!isNaN(p)) goToIdx(Math.round((p - min) / step));
+    setEditing(false);
+    setDraft("");
+  }
+
+  const topY = HALF * ITEM_H - currentIdx * ITEM_H + dragOffset;
+
+  return (
+    <div
+      style={{ position: "relative", height: ITEM_H * (HALF * 2 + 1), overflow: "hidden", touchAction: "none", userSelect: "none", borderRadius: 12, background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)" }}
+      onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} onWheel={onWheel}
+    >
+      <div style={{ position: "absolute", top: ITEM_H * HALF, left: 6, right: 6, height: ITEM_H, background: "rgba(245,158,11,0.12)", borderRadius: 8, border: "1px solid rgba(245,158,11,0.25)", pointerEvents: "none", zIndex: 1 }} />
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: ITEM_H * HALF, background: "linear-gradient(180deg, rgba(17,24,39,0.92), transparent)", pointerEvents: "none", zIndex: 2 }} />
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: ITEM_H * HALF, background: "linear-gradient(0deg, rgba(17,24,39,0.92), transparent)", pointerEvents: "none", zIndex: 2 }} />
+      <div style={{ position: "absolute", left: 0, right: 0, transform: `translateY(${topY}px)`, transition: dragging ? "none" : "transform .18s cubic-bezier(.32,.72,0,1)", willChange: "transform" }}>
+        {values.map((v, i) => {
+          const dist = Math.abs(i - currentIdx);
+          return (
+            <div key={i} onClick={() => i === currentIdx ? startEdit() : goToIdx(i)}
+              style={{ height: ITEM_H, display: "flex", alignItems: "center", justifyContent: "center", fontSize: dist === 0 ? 19 : 13, fontWeight: dist === 0 ? 800 : 400, color: dist === 0 ? "#f9fafb" : dist === 1 ? "#64748b" : "#374151", opacity: dist > 2 ? 0 : 1 }}>
+              {editing && i === currentIdx
+                ? <input ref={inputRef} type="number" value={draft} onChange={e => setDraft(e.target.value)} onBlur={commitEdit} onKeyDown={e => e.key === "Enter" && commitEdit()}
+                    style={{ width: 60, textAlign: "center", border: "none", background: "transparent", fontSize: 19, fontWeight: 800, color: "#f59e0b", outline: "none", fontFamily: "'DM Sans', sans-serif", WebkitAppearance: "none" }} />
+                : v
+              }
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ position: "absolute", bottom: 3, width: "100%", textAlign: "center", fontSize: 8, color: "#f59e0b", textTransform: "uppercase", letterSpacing: 0.8, zIndex: 3, pointerEvents: "none" }}>{unit}</div>
+    </div>
+  );
+}
+
 const RIR_OPTIONS = ["0", "1", "2", "3", "4+"];
 function SetRow({ set, idx, onChange, onRemove, isOnly }) {
   return (
@@ -277,11 +355,11 @@ function SetRow({ set, idx, onChange, onRemove, isOnly }) {
       <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 9, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 }}>Peso</div>
-          <Stepper value={set.weight} onChange={v => onChange(idx, "weight", v)} step={2.5} unit="kg" />
+          <SliderInput value={set.weight} onChange={v => onChange(idx, "weight", v)} step={1.25} min={0} max={200} unit="kg" />
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 9, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 }}>Reps</div>
-          <Stepper value={set.reps} onChange={v => onChange(idx, "reps", v)} step={1} unit="reps" />
+          <SliderInput value={set.reps} onChange={v => onChange(idx, "reps", v)} step={1} min={1} max={30} unit="reps" />
         </div>
       </div>
       <div>
@@ -340,6 +418,105 @@ function getDateLabel(isoDate) {
   if (d.toDateString() === today.toDateString()) return "Hoy";
   if (d.toDateString() === yesterday.toDateString()) return "Ayer";
   return d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" });
+}
+
+function SessionEditPanel({ sessionIdx, day, onSave, onClose }) {
+  const [draft, setDraft] = useState(() => JSON.parse(JSON.stringify(day)));
+  const [expandedEx, setExpandedEx] = useState(null);
+
+  function updateEx(bi, ei, field, val) {
+    setDraft(d => { const n = JSON.parse(JSON.stringify(d)); n.blocks[bi].exercises[ei][field] = val; return n; });
+  }
+
+  function addEx(bi) {
+    const newEi = draft.blocks[bi].exercises.length;
+    setDraft(d => { const n = JSON.parse(JSON.stringify(d)); n.blocks[bi].exercises.push({ name: "", sets: 3, reps: "8-10", rpe: "7", rest: "2 min" }); return n; });
+    setExpandedEx({ bi, ei: newEi });
+  }
+
+  function removeEx(bi, ei) {
+    setDraft(d => { const n = JSON.parse(JSON.stringify(d)); n.blocks[bi].exercises.splice(ei, 1); return n; });
+    setExpandedEx(null);
+  }
+
+  function toggleAnchor(bi, ei) {
+    setDraft(d => { const n = JSON.parse(JSON.stringify(d)); n.blocks[bi].exercises[ei].anchor = !n.blocks[bi].exercises[ei].anchor; return n; });
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 220, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(3px)" }} />
+      <div style={{ position: "relative", background: "linear-gradient(160deg, #1c2840 0%, #111827 100%)", borderRadius: "24px 24px 0 0", padding: "0 20px 40px", maxHeight: "90vh", overflowY: "auto", animation: "slideUp .28s cubic-bezier(.32,.72,0,1)" }}>
+        <div style={{ display: "flex", justifyContent: "center", padding: "14px 0 8px" }}>
+          <div style={{ width: 40, height: 4, borderRadius: 99, background: "rgba(255,255,255,0.18)" }} />
+        </div>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 }}>Editar sesión</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", fontFamily: "Syne, sans-serif" }}>{draft.label}</div>
+          <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{draft.sub} · {draft.duration}</div>
+        </div>
+
+        {draft.blocks.map((block, bi) => (
+          <div key={bi} style={{ marginBottom: 18 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#9ca3af", letterSpacing: 1, textTransform: "uppercase", marginBottom: 10, paddingLeft: 2 }}>Bloque {bi + 1} — {block.name}</div>
+            {block.exercises.map((ex, ei) => {
+              const isExp = expandedEx?.bi === bi && expandedEx?.ei === ei;
+              return (
+                <div key={ei} style={{ background: "rgba(255,255,255,0.05)", borderRadius: 14, marginBottom: 8, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                  <div style={{ display: "flex", alignItems: "center", padding: "12px 14px", gap: 10, cursor: "pointer" }}
+                    onClick={() => setExpandedEx(isExp ? null : { bi, ei })}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#f9fafb" }}>{ex.name || "(sin nombre)"}</div>
+                      <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{ex.sets} × {ex.reps} · RIR {ex.rpe}</div>
+                    </div>
+                    {ex.anchor && <span style={{ background: "#f59e0b", color: "#111", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 99, flexShrink: 0 }}>Ancla</span>}
+                    <button onClick={e => { e.stopPropagation(); removeEx(bi, ei); }} style={{ background: "none", border: "none", color: "#64748b", fontSize: 15, cursor: "pointer", padding: "0 4px", flexShrink: 0 }}>✕</button>
+                    <span style={{ fontSize: 11, color: "#64748b", flexShrink: 0 }}>{isExp ? "▲" : "▼"}</span>
+                  </div>
+                  {isExp && (
+                    <div style={{ padding: "0 14px 14px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                      <div style={{ paddingTop: 12 }}>
+                        <label style={lbl}>Nombre</label>
+                        <input value={ex.name} onChange={e => updateEx(bi, ei, "name", e.target.value)} style={{ ...fld, marginBottom: 10 }} placeholder="Nombre del ejercicio" />
+                        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                          <div style={{ flex: 1 }}><label style={lbl}>Series</label><input value={ex.sets} onChange={e => updateEx(bi, ei, "sets", e.target.value)} style={fld} /></div>
+                          <div style={{ flex: 1 }}><label style={lbl}>Reps</label><input value={ex.reps} onChange={e => updateEx(bi, ei, "reps", e.target.value)} style={fld} placeholder="6-8" /></div>
+                        </div>
+                        <div style={{ marginBottom: 10 }}>
+                          <label style={lbl}>RIR (reps en reserva)</label>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            {["0", "1", "2", "3", "4+"].map(r => (
+                              <button key={r} onClick={() => updateEx(bi, ei, "rpe", r)} style={{ flex: 1, padding: "7px 0", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700, background: ex.rpe === r ? "#f59e0b" : "rgba(255,255,255,0.06)", color: ex.rpe === r ? "#111" : "#64748b", border: ex.rpe === r ? "none" : "1.5px solid rgba(255,255,255,0.1)" }}>{r}</button>
+                            ))}
+                          </div>
+                        </div>
+                        <label style={lbl}>Descanso</label>
+                        <input value={ex.rest || ""} onChange={e => updateEx(bi, ei, "rest", e.target.value)} style={{ ...fld, marginBottom: 10 }} placeholder="2 min" />
+                        <label style={lbl}>Nota</label>
+                        <input value={ex.note || ""} onChange={e => updateEx(bi, ei, "note", e.target.value)} style={{ ...fld, marginBottom: 10 }} placeholder="Indicación técnica..." />
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "rgba(255,255,255,0.04)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)" }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "#f9fafb" }}>Ejercicio ancla</div>
+                            <div style={{ fontSize: 10, color: "#64748b" }}>Principal de la sesión</div>
+                          </div>
+                          <button onClick={() => toggleAnchor(bi, ei)} style={{ width: 42, height: 24, borderRadius: 99, border: "none", cursor: "pointer", background: ex.anchor ? "#f59e0b" : "rgba(255,255,255,0.15)", position: "relative", flexShrink: 0 }}>
+                            <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: ex.anchor ? 21 : 3, transition: "left .15s" }} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            <button onClick={() => addEx(bi)} style={{ width: "100%", padding: "9px", borderRadius: 12, border: "1.5px dashed rgba(255,255,255,0.12)", background: "none", color: "#64748b", fontSize: 12, cursor: "pointer" }}>+ Añadir ejercicio</button>
+          </div>
+        ))}
+
+        <button onClick={() => onSave(draft)} style={{ width: "100%", padding: 15, borderRadius: 14, border: "none", background: "#f59e0b", color: "#111", fontSize: 15, fontWeight: 700, cursor: "pointer", marginTop: 8 }}>Guardar cambios</button>
+      </div>
+    </div>
+  );
 }
 
 function ExerciseDetailPanel({ exercise, sessions, onClose, onLog }) {
@@ -551,6 +728,7 @@ export default function App() {
   const [detailExercise, setDetailExercise] = useState(null);
   const [templates, setTemplates] = useState(() => { try { return JSON.parse(localStorage.getItem(TEMPLATES_KEY) || "[]"); } catch { return []; } });
   const [editingTemplate, setEditingTemplate] = useState(null);
+  const [editingSession, setEditingSession] = useState(null);
   const touchStartX = useRef(null);
 
   useEffect(() => { saveData(data); }, [data]);
@@ -936,7 +1114,7 @@ export default function App() {
         )}
 
         {view === "routine" && (
-          <div className="sec" onTouchStart={handleSwipeTouchStart} onTouchEnd={handleSwipeTouchEnd}>
+          <div className="sec">
             {editingDaySession !== null && (
               <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
                 <div onClick={() => setEditingDaySession(null)} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(2px)" }} />
@@ -1072,7 +1250,10 @@ export default function App() {
                       <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", fontFamily: "Syne, sans-serif" }}>{day.label}</div>
                       <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>{day.duration}</div>
                     </div>
-                    <button onClick={() => setEditingDaySession(routineDay)} style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 10, padding: "8px 12px", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Cambiar</button>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {!isTemplateSession && <button onClick={() => setEditingSession(sessionIdx)} style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 10, padding: "8px 12px", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Modificar</button>}
+                      <button onClick={() => setEditingDaySession(routineDay)} style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 10, padding: "8px 12px", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Cambiar</button>
+                    </div>
                   </div>
                   {isOverridden && <div style={{ background: "rgba(124,58,237,0.2)", borderRadius: 10, padding: "8px 12px", marginBottom: 12, fontSize: 12, color: "#a78bfa", fontWeight: 600 }}>Sesion movida esta semana · vuelve a la normal la semana que viene</div>}
                   {day.blocks.map((block, bi) => (
@@ -1093,11 +1274,10 @@ export default function App() {
                               </div>
                               <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: 8 }}>
                                 {doneToday && <span style={{ background: "rgba(74,222,128,0.15)", color: "#4ade80", fontSize: 11, fontWeight: 700, borderRadius: 99, padding: "3px 10px" }}>✓ Hecho</span>}
-                                {!isTemplateSession && <button onClick={() => setEditingExercise({ dayIdx: sessionIdx, blockIdx: bi, exIdx: ei })} style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 700, color: "#94a3b8", cursor: "pointer" }}>Editar</button>}
                               </div>
                             </div>
                             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: lastLog ? 8 : 10 }}>
-                              {[["Series", ex.sets], ["Reps", ex.reps], ["RPE", ex.rpe], ["Descanso", ex.rest]].map(([l, v]) => v && (
+                              {[["Series", ex.sets], ["Reps", ex.reps], ["RIR", ex.rpe], ["Descanso", ex.rest]].map(([l, v]) => v && (
                                 <div key={l} style={{ background: "rgba(255,255,255,0.06)", borderRadius: 8, padding: "5px 10px", textAlign: "center" }}>
                                   <div style={{ fontSize: 9, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: .5 }}>{l}</div>
                                   <div style={{ fontSize: 13, fontWeight: 700, color: "#f9fafb" }}>{v}</div>
@@ -1266,6 +1446,7 @@ export default function App() {
 
       {detailExercise && <ExerciseDetailPanel exercise={detailExercise} sessions={data.sessions} onClose={() => setDetailExercise(null)} onLog={openLog} />}
       {editingTemplate !== null && <TemplateEditorPanel template={editingTemplate} onSave={saveTemplate} onDelete={deleteTemplate} onClose={() => setEditingTemplate(null)} />}
+      {editingSession !== null && <SessionEditPanel sessionIdx={editingSession} day={routine[editingSession]} onSave={updatedDay => { const r = JSON.parse(JSON.stringify(routine)); r[editingSession] = updatedDay; setRoutine(r); setEditingSession(null); showToast("Sesión actualizada"); }} onClose={() => setEditingSession(null)} />}
 
       {toast && (
         <div style={{ position: "fixed", bottom: 100, left: "50%", transform: "translateX(-50%)", background: "#111827", color: "#fff", borderRadius: 12, padding: "12px 22px", fontSize: 14, fontWeight: 600, zIndex: 999, animation: "toastFade 2.2s ease forwards", whiteSpace: "nowrap" }}>
