@@ -68,7 +68,7 @@ const DEFAULT_ROUTINE = [
       { name: "Curl femoral tumbado maquina", sets: 3, reps: "10-12", rpe: "7", rest: "90 s", muscle: "Posterior" },
     ]},
     { name: "Dominante cadera (Legs B)", exercises: [
-      { name: "Hip thrust banco con barra", sets: 3, reps: "8-10", rpe: "7-8", rest: "2 min", muscle: "Glúteo" },
+      { name: "Hip thrust banco con barra", sets: 3, reps: "8-10", rpe: "7-8", rest: "2 min", muscle: "Posterior" },
       { name: "RDL mancuernas o barra", sets: 3, reps: "8-10", rpe: "7", rest: "2 min", muscle: "Posterior" },
     ]},
     { name: "Accesorio y gemelo", exercises: [
@@ -382,6 +382,7 @@ const fld = { width: "100%", padding: "11px 12px", borderRadius: 12, border: "1.
 const lbl = { display: "block", fontSize: 10, fontWeight: 700, color: "#64748b", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.8 };
 
 const MUSCLE_GROUPS = ["Pecho", "Espalda", "Hombro", "Tríceps", "Bíceps", "Cuádriceps", "Posterior", "Gemelo", "Glúteo", "Aductores", "Abdomen", "Lumbar", "Antebrazo", "Trapecio", "Cardio", "Otro"];
+const DASHBOARD_MUSCLES = ["Pecho", "Espalda", "Hombro", "Bíceps", "Tríceps", "Cuádriceps", "Posterior", "Gemelo"];
 
 const RECOMMENDED_SETS = {
   "Pecho": { min: 10, max: 20 }, "Espalda": { min: 10, max: 20 },
@@ -1056,7 +1057,7 @@ export default function App() {
 
             <div style={{ fontSize: 10, fontWeight: 700, color: "#9ca3af", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 10, marginTop: 8 }}>Volumen semanal</div>
             <div style={{ background: "#1c2840", borderRadius: 18, padding: "14px 16px", marginBottom: 16, border: "1px solid rgba(255,255,255,0.07)" }}>
-              {Object.keys(RECOMMENDED_SETS).map(muscle => {
+              {DASHBOARD_MUSCLES.map(muscle => {
                 const done = weeklyVolume[muscle] || 0;
                 const { min, max } = RECOMMENDED_SETS[muscle];
                 const pct = Math.min(done / max, 1);
