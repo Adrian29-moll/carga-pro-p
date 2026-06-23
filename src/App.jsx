@@ -82,7 +82,17 @@ const DEFAULT_ROUTINE = [
 function loadData() {
   try {
     const current = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (current) return current;
+    if (current) {
+      const migrated = {
+        ...current,
+        sessions: current.sessions.map(s => ({
+          ...s,
+          muscle: s.muscle || LEGACY_MUSCLE_MAP[s.exercise] || "Otro"
+        }))
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+      return migrated;
+    }
     const v1 = JSON.parse(localStorage.getItem("gym_tracker_v1"));
     if (v1) { localStorage.setItem(STORAGE_KEY, JSON.stringify(v1)); return v1; }
     return { sessions: [] };
@@ -383,6 +393,17 @@ const lbl = { display: "block", fontSize: 10, fontWeight: 700, color: "#64748b",
 
 const MUSCLE_GROUPS = ["Pecho", "Espalda", "Hombro", "Tríceps", "Bíceps", "Cuádriceps", "Posterior", "Gemelo", "Glúteo", "Aductores", "Abdomen", "Lumbar", "Antebrazo", "Trapecio", "Cardio", "Otro"];
 const DASHBOARD_MUSCLES = ["Pecho", "Espalda", "Hombro", "Bíceps", "Tríceps", "Cuádriceps", "Posterior", "Gemelo"];
+
+const LEGACY_MUSCLE_MAP = {
+  "Press banca plano": "Pecho", "Press inclinado mancuernas": "Pecho", "Aperturas en polea baja": "Pecho", "Press banca inclinado barra": "Pecho", "Press en maquina pecho": "Pecho", "Fondos lastrados paralelas": "Pecho",
+  "Dominadas lastradas": "Espalda", "Remo pecho apoyado maquina": "Espalda", "Pullover en polea": "Espalda", "Remo con barra Pendlay": "Espalda", "Remo polea baja agarre neutro": "Espalda",
+  "Press militar barra": "Hombro", "Press Arnold mancuernas": "Hombro", "Elevaciones laterales cable": "Hombro", "Elevaciones laterales mancuernas": "Hombro", "Face pull en polea": "Hombro", "Pajaro mancuernas o polea": "Hombro",
+  "Curl barra EZ": "Bíceps", "Curl martillo mancuernas": "Bíceps",
+  "Extension triceps polea alta": "Tríceps", "Press frances mancuerna": "Tríceps",
+  "Sentadilla barra libre": "Cuádriceps", "Prensa inclinada pies altos": "Cuádriceps", "Extension cuadriceps maquina": "Cuádriceps",
+  "Peso muerto convencional": "Posterior", "RDL mancuernas o barra": "Posterior", "Curl femoral tumbado maquina": "Posterior", "Hip thrust banco con barra": "Posterior",
+  "Elevacion de talones de pie": "Gemelo",
+};
 
 const RECOMMENDED_SETS = {
   "Pecho": { min: 10, max: 20 }, "Espalda": { min: 10, max: 20 },
@@ -875,7 +896,7 @@ export default function App() {
   function saveSession() {
     const valid = sets.filter(s => s.weight && s.reps);
     if (!valid.length) return;
-    setData(d => ({ ...d, sessions: [...d.sessions, { id: Date.now(), exercise: logExercise, muscle: routine.flatMap(d => d.blocks || []).flatMap(b => b.exercises).find(e => e.name === logExercise)?.muscle || "Otro", date: logDate, sets: valid, notes }] }));
+    setData(d => ({ ...d, sessions: [...d.sessions, { id: Date.now(), exercise: logExercise, muscle: routine.flatMap(day => day.blocks || []).flatMap(b => b.exercises).find(e => e.name === logExercise)?.muscle || LEGACY_MUSCLE_MAP[logExercise] || "Otro", date: logDate, sets: valid, notes }] }));
     showToast("Sesion guardada");
     setView("routine");
   }
@@ -900,7 +921,7 @@ export default function App() {
   const sow2 = new Date(now2); sow2.setDate(now2.getDate() - now2.getDay());
   const weekSessions = data.sessions.filter(s => new Date(s.date) >= sow2);
   const weeklyVolume = {};
-  weekSessions.forEach(s => { const muscle = s.muscle || "Otro"; weeklyVolume[muscle] = (weeklyVolume[muscle] || 0) + s.sets.length; });
+  weekSessions.forEach(s => { const muscle = s.muscle || LEGACY_MUSCLE_MAP[s.exercise] || "Otro"; weeklyVolume[muscle] = (weeklyVolume[muscle] || 0) + s.sets.length; });
 
   const filteredHistory = (histFilter ? data.sessions.filter(s => s.exercise === histFilter) : data.sessions).sort((a, b) => new Date(b.date) - new Date(a.date));
 
