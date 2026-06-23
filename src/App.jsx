@@ -8,72 +8,72 @@ const TEMPLATES_KEY = "gym_templates_v1";
 const DEFAULT_ROUTINE = [
   { day: "Lun", label: "Push A", sub: "Fuerza pectoral", duration: "~60 min", blocks: [
     { name: "Fuerza", exercises: [
-      { name: "Press banca plano", sets: 5, reps: "3-5", rpe: "8-9", rest: "3-4 min", anchor: true, note: "Cuando completes 5x5 limpio, sube 2.5 kg" },
+      { name: "Press banca plano", sets: 5, reps: "3-5", rpe: "8-9", rest: "3-4 min", anchor: true, muscle: "Pecho", note: "Cuando completes 5x5 limpio, sube 2.5 kg" },
     ]},
     { name: "Hipertrofia pecho", exercises: [
-      { name: "Press inclinado mancuernas", sets: 3, reps: "8-10", rpe: "7-8", rest: "2 min", note: "Rango completo, no bloquear codos" },
-      { name: "Aperturas en polea baja", sets: 3, reps: "12-15", rpe: "7", rest: "90 s", note: "Cable cruzado, foco en aduccion final" },
+      { name: "Press inclinado mancuernas", sets: 3, reps: "8-10", rpe: "7-8", rest: "2 min", muscle: "Pecho", note: "Rango completo, no bloquear codos" },
+      { name: "Aperturas en polea baja", sets: 3, reps: "12-15", rpe: "7", rest: "90 s", muscle: "Pecho", note: "Cable cruzado, foco en aduccion final" },
     ]},
     { name: "Hombro y triceps", exercises: [
-      { name: "Press militar barra", sets: 3, reps: "6-8", rpe: "7-8", rest: "2 min", note: "De pie o sentado, barra libre" },
-      { name: "Elevaciones laterales cable", sets: 3, reps: "15-20", rpe: "7", rest: "60 s", note: "Unilateral, codo ligeramente flexionado" },
-      { name: "Extension triceps polea alta", sets: 3, reps: "12-15", rpe: "7", rest: "60 s", note: "Cuerda o barra recta" },
+      { name: "Press militar barra", sets: 3, reps: "6-8", rpe: "7-8", rest: "2 min", muscle: "Hombro", note: "De pie o sentado, barra libre" },
+      { name: "Elevaciones laterales cable", sets: 3, reps: "15-20", rpe: "7", rest: "60 s", muscle: "Hombro", note: "Unilateral, codo ligeramente flexionado" },
+      { name: "Extension triceps polea alta", sets: 3, reps: "12-15", rpe: "7", rest: "60 s", muscle: "Tríceps", note: "Cuerda o barra recta" },
     ]},
   ]},
   { day: "Mar", label: "Pull A", sub: "Espalda vertical", duration: "~55 min + Run Z2", blocks: [
     { name: "Fuerza traccion vertical", exercises: [
-      { name: "Dominadas lastradas", sets: 4, reps: "4-6", rpe: "8", rest: "3 min", anchor: true, note: "Alt: jalon agarre prono con carga progresiva" },
+      { name: "Dominadas lastradas", sets: 4, reps: "4-6", rpe: "8", rest: "3 min", anchor: true, muscle: "Espalda", note: "Alt: jalon agarre prono con carga progresiva" },
     ]},
     { name: "Hipertrofia espalda", exercises: [
-      { name: "Remo pecho apoyado maquina", sets: 3, reps: "8-10", rpe: "7-8", rest: "2 min" },
-      { name: "Pullover en polea", sets: 3, reps: "12-15", rpe: "7", rest: "90 s" },
+      { name: "Remo pecho apoyado maquina", sets: 3, reps: "8-10", rpe: "7-8", rest: "2 min", muscle: "Espalda" },
+      { name: "Pullover en polea", sets: 3, reps: "12-15", rpe: "7", rest: "90 s", muscle: "Espalda" },
     ]},
     { name: "Biceps y rotadores", exercises: [
-      { name: "Curl barra EZ", sets: 3, reps: "8-10", rpe: "7", rest: "90 s" },
-      { name: "Face pull en polea", sets: 3, reps: "15-20", rpe: "6-7", rest: "60 s" },
+      { name: "Curl barra EZ", sets: 3, reps: "8-10", rpe: "7", rest: "90 s", muscle: "Bíceps" },
+      { name: "Face pull en polea", sets: 3, reps: "15-20", rpe: "6-7", rest: "60 s", muscle: "Hombro" },
     ]},
   ]},
   { day: "Mie", label: "Descanso", sub: "Recuperacion", duration: "Movilidad 10-15 min", rest: true, blocks: [] },
   { day: "Jue", label: "Push B", sub: "Volumen pectoral + hombro", duration: "~60 min", blocks: [
     { name: "Fuerza pecho variante", exercises: [
-      { name: "Press banca inclinado barra", sets: 4, reps: "6-8", rpe: "7-8", rest: "2-3 min" },
+      { name: "Press banca inclinado barra", sets: 4, reps: "6-8", rpe: "7-8", rest: "2-3 min", muscle: "Pecho" },
     ]},
     { name: "Hipertrofia pecho bajo y medio", exercises: [
-      { name: "Press en maquina pecho", sets: 3, reps: "10-12", rpe: "7", rest: "90 s" },
-      { name: "Fondos lastrados paralelas", sets: 3, reps: "8-10", rpe: "7-8", rest: "2 min" },
+      { name: "Press en maquina pecho", sets: 3, reps: "10-12", rpe: "7", rest: "90 s", muscle: "Pecho" },
+      { name: "Fondos lastrados paralelas", sets: 3, reps: "8-10", rpe: "7-8", rest: "2 min", muscle: "Pecho" },
     ]},
     { name: "Hombro lateral y triceps", exercises: [
-      { name: "Press Arnold mancuernas", sets: 3, reps: "10-12", rpe: "7", rest: "90 s" },
-      { name: "Elevaciones laterales mancuernas", sets: 3, reps: "15-20", rpe: "7", rest: "60 s" },
-      { name: "Press frances mancuerna", sets: 3, reps: "10-12", rpe: "7", rest: "90 s" },
+      { name: "Press Arnold mancuernas", sets: 3, reps: "10-12", rpe: "7", rest: "90 s", muscle: "Hombro" },
+      { name: "Elevaciones laterales mancuernas", sets: 3, reps: "15-20", rpe: "7", rest: "60 s", muscle: "Hombro" },
+      { name: "Press frances mancuerna", sets: 3, reps: "10-12", rpe: "7", rest: "90 s", muscle: "Tríceps" },
     ]},
   ]},
   { day: "Vie", label: "Pull B", sub: "Espalda horizontal + peso muerto", duration: "~60 min", blocks: [
     { name: "Fuerza traccion horizontal", exercises: [
-      { name: "Peso muerto convencional", sets: 4, reps: "4-5", rpe: "8", rest: "3-4 min", anchor: true, note: "RPE max 8, el sabado toca sentadilla" },
+      { name: "Peso muerto convencional", sets: 4, reps: "4-5", rpe: "8", rest: "3-4 min", anchor: true, muscle: "Posterior", note: "RPE max 8, el sabado toca sentadilla" },
     ]},
     { name: "Hipertrofia espalda horizontal", exercises: [
-      { name: "Remo con barra Pendlay", sets: 3, reps: "6-8", rpe: "7-8", rest: "2 min" },
-      { name: "Remo polea baja agarre neutro", sets: 3, reps: "10-12", rpe: "7", rest: "90 s" },
+      { name: "Remo con barra Pendlay", sets: 3, reps: "6-8", rpe: "7-8", rest: "2 min", muscle: "Espalda" },
+      { name: "Remo polea baja agarre neutro", sets: 3, reps: "10-12", rpe: "7", rest: "90 s", muscle: "Espalda" },
     ]},
     { name: "Biceps y posterior hombro", exercises: [
-      { name: "Curl martillo mancuernas", sets: 3, reps: "10-12", rpe: "7", rest: "90 s" },
-      { name: "Pajaro mancuernas o polea", sets: 3, reps: "15-20", rpe: "6-7", rest: "60 s" },
+      { name: "Curl martillo mancuernas", sets: 3, reps: "10-12", rpe: "7", rest: "90 s", muscle: "Bíceps" },
+      { name: "Pajaro mancuernas o polea", sets: 3, reps: "15-20", rpe: "6-7", rest: "60 s", muscle: "Hombro" },
     ]},
   ]},
   { day: "Sab", label: "Legs A+B", sub: "Sesion fusionada", duration: "~75 min", blocks: [
     { name: "Dominante rodilla (Legs A)", exercises: [
-      { name: "Sentadilla barra libre", sets: 4, reps: "5-6", rpe: "8", rest: "3 min", anchor: true, note: "Siempre primero" },
-      { name: "Prensa inclinada pies altos", sets: 3, reps: "10-12", rpe: "7", rest: "2 min" },
-      { name: "Curl femoral tumbado maquina", sets: 3, reps: "10-12", rpe: "7", rest: "90 s" },
+      { name: "Sentadilla barra libre", sets: 4, reps: "5-6", rpe: "8", rest: "3 min", anchor: true, muscle: "Cuádriceps", note: "Siempre primero" },
+      { name: "Prensa inclinada pies altos", sets: 3, reps: "10-12", rpe: "7", rest: "2 min", muscle: "Cuádriceps" },
+      { name: "Curl femoral tumbado maquina", sets: 3, reps: "10-12", rpe: "7", rest: "90 s", muscle: "Posterior" },
     ]},
     { name: "Dominante cadera (Legs B)", exercises: [
-      { name: "Hip thrust banco con barra", sets: 3, reps: "8-10", rpe: "7-8", rest: "2 min" },
-      { name: "RDL mancuernas o barra", sets: 3, reps: "8-10", rpe: "7", rest: "2 min" },
+      { name: "Hip thrust banco con barra", sets: 3, reps: "8-10", rpe: "7-8", rest: "2 min", muscle: "Glúteo" },
+      { name: "RDL mancuernas o barra", sets: 3, reps: "8-10", rpe: "7", rest: "2 min", muscle: "Posterior" },
     ]},
     { name: "Accesorio y gemelo", exercises: [
-      { name: "Extension cuadriceps maquina", sets: 2, reps: "15-20", rpe: "6-7", rest: "60 s" },
-      { name: "Elevacion de talones de pie", sets: 3, reps: "12-15", rpe: "7", rest: "60 s" },
+      { name: "Extension cuadriceps maquina", sets: 2, reps: "15-20", rpe: "6-7", rest: "60 s", muscle: "Cuádriceps" },
+      { name: "Elevacion de talones de pie", sets: 3, reps: "12-15", rpe: "7", rest: "60 s", muscle: "Gemelo" },
     ]},
   ]},
   { day: "Dom", label: "Trail Z2", sub: "Recuperacion activa", duration: "45-60 min", rest: true, blocks: [] },
@@ -201,6 +201,11 @@ function ExerciseEditPanel({ exercise, onSave, onClose }) {
         <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 16 }}>Editar ejercicio</div>
         <label style={lbl}>Nombre</label>
         <input value={form.name} onChange={e => update("name", e.target.value)} style={{ ...fld, marginBottom: 12 }} />
+        <label style={lbl}>Grupo muscular</label>
+        <select value={form.muscle || ""} onChange={e => update("muscle", e.target.value)} style={{ ...fld, marginBottom: 12 }}>
+          <option value="">Seleccionar...</option>
+          {MUSCLE_GROUPS.map(m => <option key={m} value={m}>{m}</option>)}
+        </select>
         <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
           <div style={{ flex: 1 }}>
             <label style={lbl}>Series</label>
@@ -376,21 +381,16 @@ function SetRow({ set, idx, onChange, onRemove, isOnly }) {
 const fld = { width: "100%", padding: "11px 12px", borderRadius: 12, border: "1.5px solid rgba(255,255,255,0.1)", fontSize: 15, fontFamily: "'DM Sans', sans-serif", background: "rgba(255,255,255,0.06)", color: "#f9fafb", WebkitAppearance: "none" };
 const lbl = { display: "block", fontSize: 10, fontWeight: 700, color: "#64748b", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.8 };
 
-const MUSCLE_MAP = {
-  "Press banca plano": "Pecho", "Press banca inclinado barra": "Pecho", "Press inclinado mancuernas": "Pecho", "Press en maquina pecho": "Pecho", "Aperturas en polea baja": "Pecho", "Fondos lastrados paralelas": "Pecho",
-  "Dominadas lastradas": "Espalda", "Remo pecho apoyado maquina": "Espalda", "Pullover en polea": "Espalda", "Remo con barra Pendlay": "Espalda", "Remo polea baja agarre neutro": "Espalda",
-  "Press militar barra": "Hombro", "Press Arnold mancuernas": "Hombro", "Elevaciones laterales cable": "Hombro", "Elevaciones laterales mancuernas": "Hombro", "Face pull en polea": "Hombro", "Pajaro mancuernas o polea": "Hombro",
-  "Curl barra EZ": "Biceps", "Curl martillo mancuernas": "Biceps",
-  "Extension triceps polea alta": "Triceps", "Press frances mancuerna": "Triceps",
-  "Sentadilla barra libre": "Cuadriceps", "Prensa inclinada pies altos": "Cuadriceps", "Extension cuadriceps maquina": "Cuadriceps",
-  "Peso muerto convencional": "Posterior", "RDL mancuernas o barra": "Posterior", "Curl femoral tumbado maquina": "Posterior", "Hip thrust banco con barra": "Posterior",
-  "Elevacion de talones de pie": "Gemelo",
-};
+const MUSCLE_GROUPS = ["Pecho", "Espalda", "Hombro", "Tríceps", "Bíceps", "Cuádriceps", "Posterior", "Gemelo", "Glúteo", "Aductores", "Abdomen", "Lumbar", "Antebrazo", "Trapecio", "Cardio", "Otro"];
 
 const RECOMMENDED_SETS = {
-  "Pecho": { min: 10, max: 20 }, "Espalda": { min: 10, max: 20 }, "Hombro": { min: 12, max: 20 },
-  "Biceps": { min: 8, max: 14 }, "Triceps": { min: 8, max: 14 }, "Cuadriceps": { min: 10, max: 20 },
+  "Pecho": { min: 10, max: 20 }, "Espalda": { min: 10, max: 20 },
+  "Hombro": { min: 12, max: 20 }, "Bíceps": { min: 8, max: 14 },
+  "Tríceps": { min: 8, max: 14 }, "Cuádriceps": { min: 10, max: 20 },
   "Posterior": { min: 10, max: 20 }, "Gemelo": { min: 8, max: 16 },
+  "Glúteo": { min: 8, max: 16 }, "Aductores": { min: 6, max: 12 },
+  "Abdomen": { min: 8, max: 16 }, "Lumbar": { min: 6, max: 12 },
+  "Antebrazo": { min: 6, max: 12 }, "Trapecio": { min: 6, max: 12 },
 };
 
 function loadAssistantMessages() {
@@ -477,6 +477,11 @@ function SessionEditPanel({ sessionIdx, day, onSave, onClose }) {
                       <div style={{ paddingTop: 12 }}>
                         <label style={lbl}>Nombre</label>
                         <input value={ex.name} onChange={e => updateEx(bi, ei, "name", e.target.value)} style={{ ...fld, marginBottom: 10 }} placeholder="Nombre del ejercicio" />
+                        <label style={lbl}>Grupo muscular</label>
+                        <select value={ex.muscle || ""} onChange={e => updateEx(bi, ei, "muscle", e.target.value)} style={{ ...fld, marginBottom: 10 }}>
+                          <option value="">Seleccionar...</option>
+                          {MUSCLE_GROUPS.map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
                         <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
                           <div style={{ flex: 1 }}><label style={lbl}>Series</label><input value={ex.sets} onChange={e => updateEx(bi, ei, "sets", e.target.value)} style={fld} /></div>
                           <div style={{ flex: 1 }}><label style={lbl}>Reps</label><input value={ex.reps} onChange={e => updateEx(bi, ei, "reps", e.target.value)} style={fld} placeholder="6-8" /></div>
@@ -757,7 +762,7 @@ export default function App() {
     const recent = [...data.sessions].sort((a,b) => new Date(b.date)-new Date(a.date)).slice(0,10);
     const todayRoutine = routine[getSessionForDay([6,0,1,2,3,4,5][now.getDay()])];
     const sessText = recent.map(s => formatDate(s.date) + " - " + s.exercise + ": " + s.sets.map(x => x.weight + "kg x" + x.reps + (x.rir !== undefined ? " RIR" + x.rir : "")).join(", ")).join("\n");
-    const volMap = weekSess.reduce((acc, s) => { const m = MUSCLE_MAP[s.exercise] || "Otro"; acc[m] = (acc[m]||0) + s.sets.length; return acc; }, {});
+    const volMap = weekSess.reduce((acc, s) => { const m = s.muscle || "Otro"; acc[m] = (acc[m]||0) + s.sets.length; return acc; }, {});
     const volText = Object.entries(volMap).map(([m,n]) => m + ": " + n + " series").join(", ");
     return "CONTEXTO DEL ATLETA:\nRutina: PPL 5 dias\nHoy toca: " + todayRoutine.label + " - " + todayRoutine.sub + "\nSesiones esta semana: " + weekSess.length + "\nVolumen semanal: " + (volText || "Sin datos") + "\n\nULTIMAS 10 SESIONES:\n" + (sessText || "Sin sesiones registradas");
   }
@@ -869,7 +874,7 @@ export default function App() {
   function saveSession() {
     const valid = sets.filter(s => s.weight && s.reps);
     if (!valid.length) return;
-    setData(d => ({ ...d, sessions: [...d.sessions, { id: Date.now(), exercise: logExercise, date: logDate, sets: valid, notes }] }));
+    setData(d => ({ ...d, sessions: [...d.sessions, { id: Date.now(), exercise: logExercise, muscle: routine.flatMap(d => d.blocks || []).flatMap(b => b.exercises).find(e => e.name === logExercise)?.muscle || "Otro", date: logDate, sets: valid, notes }] }));
     showToast("Sesion guardada");
     setView("routine");
   }
@@ -894,7 +899,7 @@ export default function App() {
   const sow2 = new Date(now2); sow2.setDate(now2.getDate() - now2.getDay());
   const weekSessions = data.sessions.filter(s => new Date(s.date) >= sow2);
   const weeklyVolume = {};
-  weekSessions.forEach(s => { const muscle = MUSCLE_MAP[s.exercise] || "Otro"; weeklyVolume[muscle] = (weeklyVolume[muscle] || 0) + s.sets.length; });
+  weekSessions.forEach(s => { const muscle = s.muscle || "Otro"; weeklyVolume[muscle] = (weeklyVolume[muscle] || 0) + s.sets.length; });
 
   const filteredHistory = (histFilter ? data.sessions.filter(s => s.exercise === histFilter) : data.sessions).sort((a, b) => new Date(b.date) - new Date(a.date));
 
