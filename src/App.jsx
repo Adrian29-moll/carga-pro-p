@@ -444,6 +444,8 @@ function getDateLabel(isoDate) {
 function SessionEditPanel({ sessionIdx, day, onSave, onClose }) {
   const [draft, setDraft] = useState(() => JSON.parse(JSON.stringify(day)));
   const [expandedEx, setExpandedEx] = useState(null);
+  const [dragEx, setDragEx] = useState(null);
+  const [dragOverEx, setDragOverEx] = useState(null);
 
   function updateEx(bi, ei, field, val) {
     setDraft(d => { const n = JSON.parse(JSON.stringify(d)); n.blocks[bi].exercises[ei][field] = val; return n; });
@@ -483,9 +485,28 @@ function SessionEditPanel({ sessionIdx, day, onSave, onClose }) {
             {block.exercises.map((ex, ei) => {
               const isExp = expandedEx?.bi === bi && expandedEx?.ei === ei;
               return (
-                <div key={ei} style={{ background: "rgba(255,255,255,0.05)", borderRadius: 14, marginBottom: 8, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                <div key={ei}
+                  draggable
+                  onDragStart={() => setDragEx({ bi, ei })}
+                  onDragOver={e => { e.preventDefault(); setDragOverEx({ bi, ei }); }}
+                  onDragLeave={() => setDragOverEx(null)}
+                  onDrop={() => {
+                    if (!dragEx) return;
+                    if (dragEx.bi === bi && dragEx.ei === ei) { setDragOverEx(null); return; }
+                    setDraft(d => {
+                      const n = JSON.parse(JSON.stringify(d));
+                      const moved = n.blocks[dragEx.bi].exercises.splice(dragEx.ei, 1)[0];
+                      const targetEi = dragEx.bi === bi && dragEx.ei < ei ? ei - 1 : ei;
+                      n.blocks[bi].exercises.splice(targetEi, 0, moved);
+                      return n;
+                    });
+                    setDragEx(null);
+                    setDragOverEx(null);
+                  }}
+                  style={{ background: "rgba(255,255,255,0.05)", borderRadius: 14, marginBottom: 8, border: dragOverEx?.bi === bi && dragOverEx?.ei === ei ? "1.5px solid #f59e0b" : "1px solid rgba(255,255,255,0.08)", overflow: "hidden", opacity: dragEx?.bi === bi && dragEx?.ei === ei ? 0.4 : 1, transition: "opacity .15s, border .1s", touchAction: "none" }}>
                   <div style={{ display: "flex", alignItems: "center", padding: "12px 14px", gap: 10, cursor: "pointer" }}
                     onClick={() => setExpandedEx(isExp ? null : { bi, ei })}>
+                    <div style={{ color: "#475569", fontSize: 16, cursor: "grab", flexShrink: 0, marginRight: 4 }}>⠿</div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13, fontWeight: 700, color: "#f9fafb" }}>{ex.name || "(sin nombre)"}</div>
                       <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{ex.sets} × {ex.reps} · RIR {ex.rpe}</div>
