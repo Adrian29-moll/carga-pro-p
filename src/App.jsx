@@ -504,7 +504,7 @@ function SessionEditPanel({ sessionIdx, day, onSave, onClose }) {
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 220, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
       <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(3px)" }} />
-      <div style={{ position: "relative", background: "linear-gradient(160deg, #1c2840 0%, #111827 100%)", borderRadius: "24px 24px 0 0", padding: "0 20px 40px", maxHeight: "90vh", overflowY: "auto", animation: "slideUp .28s cubic-bezier(.32,.72,0,1)" }}>
+      <div style={{ position: "relative", background: "linear-gradient(160deg, #1c2840 0%, #111827 100%)", borderRadius: "24px 24px 0 0", padding: "0 20px 40px", maxHeight: "90vh", overflowY: "auto", animation: "slideUp .28s cubic-bezier(.32,.72,0,1)", userSelect: "none" }}>
         <div style={{ display: "flex", justifyContent: "center", padding: "14px 0 8px" }}>
           <div style={{ width: 40, height: 4, borderRadius: 99, background: "rgba(255,255,255,0.18)" }} />
         </div>
@@ -525,7 +525,7 @@ function SessionEditPanel({ sessionIdx, day, onSave, onClose }) {
                   onTouchStart={e => onTouchStartEx(e, bi, ei)}
                   onTouchMove={onTouchMoveEx}
                   onTouchEnd={onTouchEndEx}
-                  style={{ background: "rgba(255,255,255,0.05)", borderRadius: 14, marginBottom: 8, border: dragOverEx?.bi === bi && dragOverEx?.ei === ei ? "1.5px solid #f59e0b" : "1px solid rgba(255,255,255,0.08)", overflow: "hidden", opacity: dragEx?.bi === bi && dragEx?.ei === ei ? 0.4 : 1, transition: "opacity .15s, border .1s", touchAction: "none" }}>
+                  style={{ background: "rgba(255,255,255,0.05)", borderRadius: 14, marginBottom: 8, border: dragOverEx?.bi === bi && dragOverEx?.ei === ei ? "1.5px solid #f59e0b" : "1px solid rgba(255,255,255,0.08)", overflow: "hidden", opacity: dragEx?.bi === bi && dragEx?.ei === ei ? 0.4 : 1, transition: "opacity .15s, border .1s", touchAction: "none", userSelect: "none" }}>
                   <div style={{ display: "flex", alignItems: "center", padding: "12px 14px", gap: 10, cursor: "pointer" }}
                     onClick={() => setExpandedEx(isExp ? null : { bi, ei })}>
                     <div style={{ color: "#475569", fontSize: 16, cursor: "grab", flexShrink: 0, marginRight: 4 }}>⠿</div>
@@ -981,7 +981,8 @@ export default function App() {
       <input ref={importInputRef} type="file" accept=".json" onChange={handleImport} style={{ display: "none" }} />
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
-        *{box-sizing:border-box;margin:0;padding:0}
+        *{box-sizing:border-box;margin:0;padding:0;-webkit-user-select:none;user-select:none}
+        input,textarea{-webkit-user-select:text;user-select:text}
         input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
         input:focus,select:focus,textarea:focus{outline:2px solid rgba(245,158,11,0.5);border-color:#f59e0b!important}
         select option{background:#111827;color:#f9fafb}
