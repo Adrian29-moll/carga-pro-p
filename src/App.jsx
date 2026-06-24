@@ -446,6 +446,41 @@ function SessionEditPanel({ sessionIdx, day, onSave, onClose }) {
   const [expandedEx, setExpandedEx] = useState(null);
   const [dragEx, setDragEx] = useState(null);
   const [dragOverEx, setDragOverEx] = useState(null);
+  const dragNode = useRef(null);
+
+  function onTouchStartEx(e, bi, ei) {
+    setDragEx({ bi, ei });
+    dragNode.current = e.currentTarget;
+    dragNode.current.style.opacity = "0.4";
+  }
+
+  function onTouchMoveEx(e) {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const els = document.elementsFromPoint(touch.clientX, touch.clientY);
+    const target = els.find(el => el.dataset.biex && el !== dragNode.current);
+    if (target) {
+      const [tbi, tei] = target.dataset.biex.split("-").map(Number);
+      setDragOverEx({ bi: tbi, ei: tei });
+    } else {
+      setDragOverEx(null);
+    }
+  }
+
+  function onTouchEndEx() {
+    if (dragNode.current) dragNode.current.style.opacity = "1";
+    if (dragEx && dragOverEx && !(dragEx.bi === dragOverEx.bi && dragEx.ei === dragOverEx.ei)) {
+      setDraft(d => {
+        const n = JSON.parse(JSON.stringify(d));
+        const moved = n.blocks[dragEx.bi].exercises.splice(dragEx.ei, 1)[0];
+        n.blocks[dragOverEx.bi].exercises.splice(dragOverEx.ei, 0, moved);
+        return n;
+      });
+    }
+    setDragEx(null);
+    setDragOverEx(null);
+    dragNode.current = null;
+  }
 
   function updateEx(bi, ei, field, val) {
     setDraft(d => { const n = JSON.parse(JSON.stringify(d)); n.blocks[bi].exercises[ei][field] = val; return n; });
@@ -486,23 +521,10 @@ function SessionEditPanel({ sessionIdx, day, onSave, onClose }) {
               const isExp = expandedEx?.bi === bi && expandedEx?.ei === ei;
               return (
                 <div key={ei}
-                  draggable
-                  onDragStart={() => setDragEx({ bi, ei })}
-                  onDragOver={e => { e.preventDefault(); setDragOverEx({ bi, ei }); }}
-                  onDragLeave={() => setDragOverEx(null)}
-                  onDrop={() => {
-                    if (!dragEx) return;
-                    if (dragEx.bi === bi && dragEx.ei === ei) { setDragOverEx(null); return; }
-                    setDraft(d => {
-                      const n = JSON.parse(JSON.stringify(d));
-                      const moved = n.blocks[dragEx.bi].exercises.splice(dragEx.ei, 1)[0];
-                      const targetEi = dragEx.bi === bi && dragEx.ei < ei ? ei - 1 : ei;
-                      n.blocks[bi].exercises.splice(targetEi, 0, moved);
-                      return n;
-                    });
-                    setDragEx(null);
-                    setDragOverEx(null);
-                  }}
+                  data-biex={`${bi}-${ei}`}
+                  onTouchStart={e => onTouchStartEx(e, bi, ei)}
+                  onTouchMove={onTouchMoveEx}
+                  onTouchEnd={onTouchEndEx}
                   style={{ background: "rgba(255,255,255,0.05)", borderRadius: 14, marginBottom: 8, border: dragOverEx?.bi === bi && dragOverEx?.ei === ei ? "1.5px solid #f59e0b" : "1px solid rgba(255,255,255,0.08)", overflow: "hidden", opacity: dragEx?.bi === bi && dragEx?.ei === ei ? 0.4 : 1, transition: "opacity .15s, border .1s", touchAction: "none" }}>
                   <div style={{ display: "flex", alignItems: "center", padding: "12px 14px", gap: 10, cursor: "pointer" }}
                     onClick={() => setExpandedEx(isExp ? null : { bi, ei })}>
