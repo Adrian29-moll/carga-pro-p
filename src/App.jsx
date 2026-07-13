@@ -798,7 +798,6 @@ export default function App() {
   const [templates, setTemplates] = useState(() => { try { return JSON.parse(localStorage.getItem(TEMPLATES_KEY) || "[]"); } catch { return []; } });
   const [editingTemplate, setEditingTemplate] = useState(null);
   const [editingSession, setEditingSession] = useState(null);
-  const [changeMode, setChangeMode] = useState("temporal");
   const touchStartX = useRef(null);
 
   useEffect(() => { saveData(data); }, [data]);
@@ -821,8 +820,8 @@ export default function App() {
   function setSessionForDay(dayIdx, sessionIdx) { setWeekOverrides(prev => ({ ...prev, [getWeekKey(dayIdx)]: sessionIdx })); }
   function resetSessionForDay(dayIdx) { setWeekOverrides(prev => { const n = {...prev}; delete n[getWeekKey(dayIdx)]; return n; }); }
 
-  function handleSessionChange(dayIdx, sessionKey) {
-    if (changeMode === "temporal") {
+  function handleSessionChange(dayIdx, sessionKey, mode = "temporal") {
+    if (mode === "temporal") {
       setSessionForDay(dayIdx, sessionKey);
     } else {
       const newRoutine = JSON.parse(JSON.stringify(routine));
@@ -836,7 +835,6 @@ export default function App() {
       }
     }
     setEditingDaySession(null);
-    setChangeMode("temporal");
   }
 
   function buildContext() {
@@ -1206,35 +1204,34 @@ export default function App() {
           <div className="sec">
             {editingDaySession !== null && (
               <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-                <div onClick={() => { setEditingDaySession(null); setChangeMode("temporal"); }} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(2px)" }} />
+                <div onClick={() => setEditingDaySession(null)} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(2px)" }} />
                 <div style={{ position: "relative", background: "#111827", borderRadius: "22px 22px 0 0", padding: "0 20px 36px", maxHeight: "75vh", overflowY: "auto", animation: "slideUp .25s cubic-bezier(.32,.72,0,1)" }}>
                   <div style={{ display: "flex", justifyContent: "center", padding: "14px 0 8px" }}>
                     <div style={{ width: 36, height: 4, borderRadius: 99, background: "rgba(255,255,255,0.15)" }} />
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 14 }}>Sesion para el {routine[editingDaySession].day}</div>
-                  <div style={{ display: "flex", gap: 8, marginBottom: 16, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 4 }}>
-                    <button onClick={() => setChangeMode("temporal")} style={{ flex: 1, padding: "8px", borderRadius: 9, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: changeMode === "temporal" ? "#1e3a5f" : "transparent", color: changeMode === "temporal" ? "#f59e0b" : "#64748b", transition: "all .15s" }}>
-                      Esta semana
-                    </button>
-                    <button onClick={() => setChangeMode("permanent")} style={{ flex: 1, padding: "8px", borderRadius: 9, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: changeMode === "permanent" ? "#1e3a5f" : "transparent", color: changeMode === "permanent" ? "#f59e0b" : "#64748b", transition: "all .15s" }}>
-                      Fijar siempre
-                    </button>
-                  </div>
-                  <div style={{ fontSize: 11, color: "#64748b", marginBottom: 14, padding: "0 4px" }}>
-                    {changeMode === "temporal"
-                      ? "El cambio se aplica solo esta semana. La semana que viene vuelve a la rutina normal."
-                      : "El cambio se fija permanentemente en tu rutina hasta que lo cambies manualmente."}
-                  </div>
                   {routine.map((r, ri) => {
                     const isSelected = getSessionForDay(editingDaySession) === ri;
                     return (
-                      <button key={ri} onClick={() => handleSessionChange(editingDaySession, ri)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px", borderRadius: 14, marginBottom: 8, cursor: "pointer", background: isSelected ? "rgba(245,158,11,0.15)" : "rgba(255,255,255,0.05)", border: isSelected ? "1.5px solid #f59e0b" : "1.5px solid rgba(255,255,255,0.08)" }}>
-                        <div style={{ textAlign: "left" }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: "#f9fafb" }}>{r.label}</div>
-                          <div style={{ fontSize: 11, color: "#64748b" }}>{r.sub} · {r.duration}</div>
+                      <div key={ri} style={{ marginBottom: 8 }}>
+                        <div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px", borderRadius: 14, background: isSelected ? "rgba(245,158,11,0.15)" : "rgba(255,255,255,0.05)", border: isSelected ? "1.5px solid #f59e0b" : "1.5px solid rgba(255,255,255,0.08)" }}>
+                          <div style={{ textAlign: "left" }}>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: "#f9fafb" }}>{r.label}</div>
+                            <div style={{ fontSize: 11, color: "#64748b" }}>{r.sub} · {r.duration}</div>
+                          </div>
+                          {isSelected && <span style={{ fontSize: 16, color: "#f59e0b" }}>✓</span>}
                         </div>
-                        {isSelected && <span style={{ fontSize: 16, color: "#f59e0b" }}>✓</span>}
-                      </button>
+                        <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                          <button onClick={() => { setSessionForDay(editingDaySession, ri); setEditingDaySession(null); }}
+                            style={{ flex: 1, padding: "6px 0", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "none", color: "#64748b", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                            Esta semana
+                          </button>
+                          <button onClick={() => { handleSessionChange(editingDaySession, ri, "permanent"); }}
+                            style={{ flex: 1, padding: "6px 0", borderRadius: 8, border: "1px solid rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.06)", color: "#f59e0b", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                            Fijar siempre
+                          </button>
+                        </div>
+                      </div>
                     );
                   })}
                   {templates.length > 0 && (
@@ -1243,15 +1240,27 @@ export default function App() {
                       {templates.map(t => {
                         const isSelected = getSessionForDay(editingDaySession) === t.id;
                         return (
-                          <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                            <button onClick={() => handleSessionChange(editingDaySession, t.id)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px", borderRadius: 14, cursor: "pointer", background: isSelected ? "rgba(245,158,11,0.15)" : "rgba(255,255,255,0.05)", border: isSelected ? "1.5px solid #f59e0b" : "1.5px solid rgba(255,255,255,0.08)" }}>
-                              <div style={{ textAlign: "left" }}>
-                                <div style={{ fontSize: 14, fontWeight: 700, color: "#f9fafb" }}>{t.label}</div>
-                                <div style={{ fontSize: 11, color: "#64748b" }}>{t.sub} · {t.duration}</div>
+                          <div key={t.id} style={{ marginBottom: 8 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px", borderRadius: 14, background: isSelected ? "rgba(245,158,11,0.15)" : "rgba(255,255,255,0.05)", border: isSelected ? "1.5px solid #f59e0b" : "1.5px solid rgba(255,255,255,0.08)" }}>
+                                <div style={{ textAlign: "left" }}>
+                                  <div style={{ fontSize: 14, fontWeight: 700, color: "#f9fafb" }}>{t.label}</div>
+                                  <div style={{ fontSize: 11, color: "#64748b" }}>{t.sub} · {t.duration}</div>
+                                </div>
+                                {isSelected && <span style={{ fontSize: 16, color: "#f59e0b" }}>✓</span>}
                               </div>
-                              {isSelected && <span style={{ fontSize: 16, color: "#f59e0b" }}>✓</span>}
-                            </button>
-                            <button onClick={() => { setEditingDaySession(null); setEditingTemplate(t); }} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", color: "#94a3b8", cursor: "pointer", fontSize: 14, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>✎</button>
+                              <button onClick={() => { setEditingDaySession(null); setEditingTemplate(t); }} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", color: "#94a3b8", cursor: "pointer", fontSize: 14, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>✎</button>
+                            </div>
+                            <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                              <button onClick={() => { setSessionForDay(editingDaySession, t.id); setEditingDaySession(null); }}
+                                style={{ flex: 1, padding: "6px 0", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "none", color: "#64748b", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                                Esta semana
+                              </button>
+                              <button onClick={() => { handleSessionChange(editingDaySession, t.id, "permanent"); }}
+                                style={{ flex: 1, padding: "6px 0", borderRadius: 8, border: "1px solid rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.06)", color: "#f59e0b", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                                Fijar siempre
+                              </button>
+                            </div>
                           </div>
                         );
                       })}
@@ -1304,6 +1313,24 @@ export default function App() {
                   );
                 })}
                 <button onClick={() => routine.forEach((_, i) => resetSessionForDay(i))} style={{ width: "100%", padding: "10px", borderRadius: 12, border: "none", background: "none", color: "#64748b", fontSize: 12, cursor: "pointer", marginTop: 4 }}>Resetear semana a rutina por defecto</button>
+                <button onClick={() => {
+                  const newRoutine = JSON.parse(JSON.stringify(routine));
+                  routine.forEach((_, i) => {
+                    const sessionKey = getSessionForDay(i);
+                    const targetSession = typeof sessionKey === "string" && sessionKey.startsWith("t-")
+                      ? templates.find(t => t.id === sessionKey)
+                      : routine[sessionKey];
+                    if (targetSession && sessionKey !== i) {
+                      newRoutine[i] = { ...targetSession, day: routine[i].day };
+                    }
+                  });
+                  setRoutine(newRoutine);
+                  routine.forEach((_, i) => resetSessionForDay(i));
+                  setPlannerMode(false);
+                  showToast("Semana fijada como rutina permanente");
+                }} style={{ width: "100%", padding: "11px", borderRadius: 12, border: "1.5px solid rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.08)", color: "#f59e0b", fontSize: 13, fontWeight: 600, cursor: "pointer", marginTop: 8 }}>
+                  Fijar semana como rutina permanente
+                </button>
               </div>
             )}
 
