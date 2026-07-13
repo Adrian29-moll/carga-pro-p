@@ -973,9 +973,11 @@ export default function App() {
 
   const anchorExercises = [];
   routine.forEach(day => { if (day.rest) return; day.blocks.forEach(block => { block.exercises.forEach(ex => { if (ex.anchor) anchorExercises.push({ ...ex, dayLabel: day.label }); }); }); });
+  templates.forEach(t => { (t.blocks || []).forEach(block => { (block.exercises || []).forEach(ex => { if (ex.anchor && ex.name && !anchorExercises.find(a => a.name === ex.name)) anchorExercises.push({ ...ex, dayLabel: t.label || "Plantilla" }); }); }); });
 
   const allRoutineExercises = [];
   routine.forEach(day => { if (day.rest) return; day.blocks.forEach(block => { block.exercises.forEach(ex => { if (!allRoutineExercises.includes(ex.name)) allRoutineExercises.push(ex.name); }); }); });
+  templates.forEach(t => { (t.blocks || []).forEach(block => { (block.exercises || []).forEach(ex => { if (ex.name && !allRoutineExercises.includes(ex.name)) allRoutineExercises.push(ex.name); }); }); });
 
   const now2 = new Date();
   const sow2 = new Date(now2); sow2.setDate(now2.getDate() - now2.getDay());
