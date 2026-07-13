@@ -1462,6 +1462,31 @@ export default function App() {
                 </>
               );
             })()}
+
+            <div style={{ marginTop: 24 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#9ca3af", letterSpacing: 1.5, textTransform: "uppercase" }}>Mis plantillas</div>
+                <button onClick={() => setEditingTemplate({})} style={{ fontSize: 12, fontWeight: 700, color: "#f59e0b", background: "none", border: "none", cursor: "pointer" }}>+ Nueva</button>
+              </div>
+
+              {templates.length === 0 ? (
+                <div style={{ background: "#1c2840", borderRadius: 14, padding: "20px 16px", textAlign: "center", border: "1.5px dashed rgba(255,255,255,0.1)" }}>
+                  <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10 }}>No tienes plantillas creadas</div>
+                  <button onClick={() => setEditingTemplate({})} style={{ padding: "8px 18px", borderRadius: 10, border: "none", background: "rgba(245,158,11,0.15)", color: "#f59e0b", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Crear primera plantilla</button>
+                </div>
+              ) : (
+                templates.map(t => (
+                  <div key={t.id} style={{ background: "#1c2840", borderRadius: 14, padding: "12px 14px", marginBottom: 8, border: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "#f9fafb" }}>{t.label}</div>
+                      <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{t.sub}{t.duration ? " · " + t.duration : ""}</div>
+                    </div>
+                    <button onClick={() => setEditingTemplate(t)} style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", color: "#94a3b8", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✎</button>
+                    <button onClick={() => { if (window.confirm("¿Eliminar " + t.label + "?")) deleteTemplate(t.id); }} style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)", color: "#f87171", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✕</button>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         )}
 
