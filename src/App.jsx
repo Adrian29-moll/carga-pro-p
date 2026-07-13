@@ -1465,10 +1465,46 @@ export default function App() {
 
             <div style={{ marginTop: 24 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#9ca3af", letterSpacing: 1.5, textTransform: "uppercase" }}>Mis plantillas</div>
-                <button onClick={() => setEditingTemplate({})} style={{ fontSize: 12, fontWeight: 700, color: "#f59e0b", background: "none", border: "none", cursor: "pointer" }}>+ Nueva</button>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#9ca3af", letterSpacing: 1.5, textTransform: "uppercase" }}>Sesiones y plantillas</div>
+                <button onClick={() => setEditingTemplate({})} style={{ fontSize: 12, fontWeight: 700, color: "#f59e0b", background: "none", border: "none", cursor: "pointer" }}>+ Nueva plantilla</button>
               </div>
 
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Rutina base</div>
+              {routine.map((r, ri) => (
+                <div key={ri} draggable
+                  onDragStart={() => setDragSrc(ri)}
+                  onDragOver={e => { e.preventDefault(); setDragOver(ri); }}
+                  onDragLeave={() => setDragOver(null)}
+                  onDrop={() => {
+                    if (dragSrc === null || dragSrc === ri) { setDragOver(null); return; }
+                    const newRoutine = JSON.parse(JSON.stringify(routine));
+                    const [moved] = newRoutine.splice(dragSrc, 1);
+                    newRoutine.splice(ri, 0, moved);
+                    newRoutine.forEach((d, i) => d.day = DEFAULT_ROUTINE[i].day);
+                    setRoutine(newRoutine);
+                    setDragSrc(null);
+                    setDragOver(null);
+                    showToast("Rutina reordenada");
+                  }}
+                  style={{ background: dragOver === ri ? "rgba(245,158,11,0.1)" : "#1c2840", borderRadius: 14, padding: "12px 14px", marginBottom: 8, border: dragOver === ri ? "1.5px solid #f59e0b" : "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", gap: 10, cursor: "grab" }}>
+                  <div style={{ color: "#475569", fontSize: 16, flexShrink: 0 }}>⠿</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#f9fafb" }}>{r.label}</div>
+                    <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{r.day} · {r.sub}</div>
+                  </div>
+                  {!r.rest && <button onClick={() => setEditingSession(ri)} style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", color: "#94a3b8", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✎</button>}
+                  <button onClick={() => {
+                    if (window.confirm("¿Eliminar " + r.label + " y convertir en descanso?")) {
+                      const newRoutine = JSON.parse(JSON.stringify(routine));
+                      newRoutine[ri] = { day: r.day, label: "Descanso", sub: "Sin entrenamiento", duration: "Recuperación", rest: true, blocks: [] };
+                      setRoutine(newRoutine);
+                      showToast(r.label + " eliminada");
+                    }
+                  }} style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)", color: "#f87171", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✕</button>
+                </div>
+              ))}
+
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, margin: "16px 0 8px" }}>Mis plantillas</div>
               {templates.length === 0 ? (
                 <div style={{ background: "#1c2840", borderRadius: 14, padding: "20px 16px", textAlign: "center", border: "1.5px dashed rgba(255,255,255,0.1)" }}>
                   <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10 }}>No tienes plantillas creadas</div>
