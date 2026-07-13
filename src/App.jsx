@@ -710,8 +710,7 @@ function ExerciseDetailPanel({ exercise, sessions, onClose, onLog }) {
 
 function TemplateEditorPanel({ template, onSave, onDelete, onClose }) {
   const [form, setForm] = useState(template.id ? { ...template } : {
-    label: "", sub: "", duration: "",
-    blocks: [{ name: "Bloque 1", exercises: [{ name: "", sets: 3, reps: "8-10", rpe: "7", rest: "2 min" }] }]
+    label: "", sub: "", duration: "", blocks: []
   });
   function updateField(f, v) { setForm(p => ({ ...p, [f]: v })); }
   function addBlock() { setForm(p => ({ ...p, blocks: [...p.blocks, { name: `Bloque ${p.blocks.length + 1}`, exercises: [{ name: "", sets: 3, reps: "8-10", rpe: "7", rest: "2 min" }] }] })); }
@@ -743,7 +742,10 @@ function TemplateEditorPanel({ template, onSave, onDelete, onClose }) {
             <input value={form.duration || ""} onChange={e => updateField("duration", e.target.value)} style={fld} placeholder="ej. ~60 min" />
           </div>
         </div>
-        {form.blocks.map((block, bi) => (
+        <button onClick={() => setForm(f => ({ ...f, blocks: f.blocks.length > 0 ? [] : [{ name: "Bloque 1", exercises: [{ name: "", sets: 3, reps: "8-10", rpe: "7", rest: "2 min" }] }] }))} style={{ width: "100%", padding: "9px", borderRadius: 10, border: "1.5px dashed rgba(255,255,255,0.12)", background: "none", color: "#64748b", fontSize: 12, cursor: "pointer", marginBottom: 16 }}>
+          {form.blocks.length > 0 ? "✕ Quitar ejercicios (día sin gym)" : "+ Añadir ejercicios"}
+        </button>
+        {form.blocks.length > 0 && form.blocks.map((block, bi) => (
           <div key={bi} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "12px 14px", marginBottom: 12, border: "1px solid rgba(255,255,255,0.08)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
               <input value={block.name} onChange={e => updateBlock(bi, "name", e.target.value)} style={{ ...fld, flex: 1 }} placeholder={`Bloque ${bi + 1}`} />
@@ -768,8 +770,8 @@ function TemplateEditorPanel({ template, onSave, onDelete, onClose }) {
             <button onClick={() => addExercise(bi)} style={{ width: "100%", padding: "8px", borderRadius: 10, border: "1.5px dashed rgba(255,255,255,0.12)", background: "none", color: "#64748b", fontSize: 12, cursor: "pointer", marginTop: 4 }}>+ Añadir ejercicio</button>
           </div>
         ))}
-        <button onClick={addBlock} style={{ width: "100%", padding: "10px", borderRadius: 12, border: "1.5px dashed rgba(255,255,255,0.12)", background: "none", color: "#64748b", fontSize: 13, cursor: "pointer", marginBottom: 16 }}>+ Añadir bloque</button>
-        <button onClick={() => onSave(form)} style={{ width: "100%", padding: 15, borderRadius: 14, border: "none", background: "#f59e0b", color: "#111", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+        {form.blocks.length > 0 && <button onClick={addBlock} style={{ width: "100%", padding: "10px", borderRadius: 12, border: "1.5px dashed rgba(255,255,255,0.12)", background: "none", color: "#64748b", fontSize: 13, cursor: "pointer", marginBottom: 16 }}>+ Añadir bloque</button>}
+        <button onClick={() => form.label.trim() && onSave(form)} style={{ width: "100%", padding: 15, borderRadius: 14, border: "none", background: form.label.trim() ? "#f59e0b" : "rgba(255,255,255,0.1)", color: form.label.trim() ? "#111" : "#64748b", fontSize: 15, fontWeight: 700, cursor: form.label.trim() ? "pointer" : "default" }}>
           {template.id ? "Guardar cambios" : "Crear plantilla"}
         </button>
       </div>
@@ -1412,11 +1414,12 @@ export default function App() {
               const day = resolveSession(sessionKey) || routine[routineDay];
               const sessionIdx = isTemplateSession ? routineDay : parseInt(sessionKey);
               const isOverridden = getWeekKey(routineDay) in weekOverrides && weekOverrides[getWeekKey(routineDay)] !== routineDay;
-              if (day.rest) return (
+              if (day.rest || day.blocks.length === 0) return (
                 <>
                   <div style={{ background: "#1c2840", borderRadius: 18, padding: 28, textAlign: "center", border: "1px solid rgba(255,255,255,0.07)", marginBottom: 10 }}>
                     <div style={{ fontSize: 40, marginBottom: 12 }}>{day.label.includes("Trail") ? "🏃" : "🧘"}</div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: "#f9fafb", fontFamily: "Syne, sans-serif" }}>{day.label}</div>
+                    {day.sub && <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>{day.sub}</div>}
                     <div style={{ fontSize: 13, color: "#64748b", marginTop: 6 }}>{day.duration}</div>
                   </div>
                   <button onClick={() => setEditingDaySession(routineDay)} style={{ width: "100%", padding: "11px", borderRadius: 14, border: "1.5px solid rgba(255,255,255,0.1)", background: "none", color: "#64748b", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Cambiar sesion de este dia</button>
