@@ -822,17 +822,25 @@ export default function App() {
 
   function handleSessionChange(dayIdx, sessionKey, mode = "temporal") {
     if (mode === "temporal") {
-      setSessionForDay(dayIdx, sessionKey);
+      if (sessionKey === "rest") {
+        setSessionForDay(dayIdx, "rest");
+      } else {
+        setSessionForDay(dayIdx, sessionKey);
+      }
     } else {
       const newRoutine = JSON.parse(JSON.stringify(routine));
-      const targetSession = typeof sessionKey === "string" && sessionKey.startsWith("t-")
-        ? templates.find(t => t.id === sessionKey)
-        : routine[sessionKey];
-      if (targetSession) {
-        newRoutine[dayIdx] = { ...targetSession, day: routine[dayIdx].day };
-        setRoutine(newRoutine);
-        showToast("Sesión fijada permanentemente");
+      if (sessionKey === "rest") {
+        newRoutine[dayIdx] = { ...newRoutine[dayIdx], rest: true, label: "Descanso", sub: "Sin entrenamiento", duration: "Recuperación", blocks: [] };
+      } else {
+        const targetSession = typeof sessionKey === "string" && sessionKey.startsWith("t-")
+          ? templates.find(t => t.id === sessionKey)
+          : routine[sessionKey];
+        if (targetSession) {
+          newRoutine[dayIdx] = { ...targetSession, day: routine[dayIdx].day };
+        }
       }
+      setRoutine(newRoutine);
+      showToast("Sesión fijada permanentemente");
     }
     setEditingDaySession(null);
   }
@@ -939,6 +947,7 @@ export default function App() {
   }
 
   function resolveSession(key) {
+    if (key === "rest") return { label: "Descanso", sub: "Sin entrenamiento", duration: "Recuperación", rest: true, blocks: [] };
     if (String(key).startsWith("t-")) return templates.find(t => t.id === key) || null;
     const idx = parseInt(key);
     return isNaN(idx) ? null : routine[idx] || null;
@@ -1212,6 +1221,24 @@ export default function App() {
                     <div style={{ width: 36, height: 4, borderRadius: 99, background: "rgba(255,255,255,0.15)" }} />
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 14 }}>Sesion para el {routine[editingDaySession].day}</div>
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px", borderRadius: 14, background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.08)" }}>
+                      <div style={{ textAlign: "left" }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#f9fafb" }}>Descanso</div>
+                        <div style={{ fontSize: 11, color: "#64748b" }}>Sin entrenamiento · Recuperación</div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                      <button onClick={() => { setSessionForDay(editingDaySession, "rest"); setEditingDaySession(null); }}
+                        style={{ flex: 1, padding: "6px 0", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "none", color: "#64748b", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                        Esta semana
+                      </button>
+                      <button onClick={() => { handleSessionChange(editingDaySession, "rest", "permanent"); }}
+                        style={{ flex: 1, padding: "6px 0", borderRadius: 8, border: "1px solid rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.06)", color: "#f59e0b", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                        Fijar siempre
+                      </button>
+                    </div>
+                  </div>
                   {routine.map((r, ri) => {
                     const isSelected = getSessionForDay(editingDaySession) === ri;
                     return (
