@@ -441,7 +441,7 @@ function getDateLabel(isoDate) {
   return d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" });
 }
 
-function SessionEditPanel({ sessionIdx, day, onSave, onClose }) {
+function SessionEditPanel({ sessionIdx, day, onSave, onDelete, onClose }) {
   const [draft, setDraft] = useState(() => JSON.parse(JSON.stringify(day)));
   const [expandedEx, setExpandedEx] = useState(null);
   const [dragEx, setDragEx] = useState(null);
@@ -509,9 +509,19 @@ function SessionEditPanel({ sessionIdx, day, onSave, onClose }) {
           <div style={{ width: 40, height: 4, borderRadius: 99, background: "rgba(255,255,255,0.18)" }} />
         </div>
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 }}>Editar sesión</div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", fontFamily: "Syne, sans-serif" }}>{draft.label}</div>
-          <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{draft.sub} · {draft.duration}</div>
+          <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 12 }}>Editar sesión</div>
+          <label style={lbl}>Nombre</label>
+          <input value={draft.label || ""} onChange={e => setDraft(d => ({ ...d, label: e.target.value }))} style={{ ...fld, marginBottom: 10 }} placeholder="ej. Push A" />
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <div style={{ flex: 1 }}>
+              <label style={lbl}>Descripción</label>
+              <input value={draft.sub || ""} onChange={e => setDraft(d => ({ ...d, sub: e.target.value }))} style={fld} placeholder="ej. Fuerza pectoral" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={lbl}>Duración</label>
+              <input value={draft.duration || ""} onChange={e => setDraft(d => ({ ...d, duration: e.target.value }))} style={fld} placeholder="ej. ~60 min" />
+            </div>
+          </div>
         </div>
 
         {draft.blocks.map((block, bi) => (
@@ -583,6 +593,11 @@ function SessionEditPanel({ sessionIdx, day, onSave, onClose }) {
         ))}
 
         <button onClick={() => onSave(draft)} style={{ width: "100%", padding: 15, borderRadius: 14, border: "none", background: "#f59e0b", color: "#111", fontSize: 15, fontWeight: 700, cursor: "pointer", marginTop: 8 }}>Guardar cambios</button>
+        {onDelete && (
+          <button onClick={onDelete} style={{ width: "100%", padding: 12, borderRadius: 14, border: "1.5px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)", color: "#f87171", fontSize: 13, fontWeight: 600, cursor: "pointer", marginTop: 8 }}>
+            Eliminar sesión
+          </button>
+        )}
       </div>
     </div>
   );
@@ -1243,12 +1258,16 @@ export default function App() {
                     const isSelected = getSessionForDay(editingDaySession) === ri;
                     return (
                       <div key={ri} style={{ marginBottom: 8 }}>
-                        <div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px", borderRadius: 14, background: isSelected ? "rgba(245,158,11,0.15)" : "rgba(255,255,255,0.05)", border: isSelected ? "1.5px solid #f59e0b" : "1.5px solid rgba(255,255,255,0.08)" }}>
-                          <div style={{ textAlign: "left" }}>
-                            <div style={{ fontSize: 14, fontWeight: 700, color: "#f9fafb" }}>{r.label}</div>
-                            <div style={{ fontSize: 11, color: "#64748b" }}>{r.sub} · {r.duration}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px", borderRadius: 14, background: isSelected ? "rgba(245,158,11,0.15)" : "rgba(255,255,255,0.05)", border: isSelected ? "1.5px solid #f59e0b" : "1.5px solid rgba(255,255,255,0.08)" }}>
+                            <div style={{ textAlign: "left" }}>
+                              <div style={{ fontSize: 14, fontWeight: 700, color: "#f9fafb" }}>{r.label}</div>
+                              <div style={{ fontSize: 11, color: "#64748b" }}>{r.sub} · {r.duration}</div>
+                            </div>
+                            {isSelected && <span style={{ fontSize: 16, color: "#f59e0b" }}>✓</span>}
                           </div>
-                          {isSelected && <span style={{ fontSize: 16, color: "#f59e0b" }}>✓</span>}
+                          {!r.rest && <button onClick={() => { setEditingDaySession(null); setEditingSession(ri); }} style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", color: "#94a3b8", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✎</button>}
+                          <button onClick={() => { if (window.confirm("¿Eliminar " + r.label + "?")) { const newRoutine = JSON.parse(JSON.stringify(routine)); newRoutine[ri] = { day: r.day, label: "Descanso", sub: "Sin entrenamiento", duration: "Recuperación", rest: true, blocks: [] }; setRoutine(newRoutine); setEditingDaySession(null); showToast(r.label + " eliminada"); } }} style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)", color: "#f87171", cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✕</button>
                         </div>
                         <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
                           <button onClick={() => { setSessionForDay(editingDaySession, ri); setEditingDaySession(null); }}
@@ -1279,6 +1298,7 @@ export default function App() {
                                 {isSelected && <span style={{ fontSize: 16, color: "#f59e0b" }}>✓</span>}
                               </div>
                               <button onClick={() => { setEditingDaySession(null); setEditingTemplate(t); }} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", color: "#94a3b8", cursor: "pointer", fontSize: 14, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>✎</button>
+                              <button onClick={() => { if (window.confirm("¿Eliminar " + t.label + "?")) { deleteTemplate(t.id); setEditingDaySession(null); } }} style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)", color: "#f87171", cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✕</button>
                             </div>
                             <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
                               <button onClick={() => { setSessionForDay(editingDaySession, t.id); setEditingDaySession(null); }}
@@ -1463,66 +1483,6 @@ export default function App() {
               );
             })()}
 
-            <div style={{ marginTop: 24 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#9ca3af", letterSpacing: 1.5, textTransform: "uppercase" }}>Sesiones y plantillas</div>
-                <button onClick={() => setEditingTemplate({})} style={{ fontSize: 12, fontWeight: 700, color: "#f59e0b", background: "none", border: "none", cursor: "pointer" }}>+ Nueva plantilla</button>
-              </div>
-
-              <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Rutina base</div>
-              {routine.map((r, ri) => (
-                <div key={ri} draggable
-                  onDragStart={() => setDragSrc(ri)}
-                  onDragOver={e => { e.preventDefault(); setDragOver(ri); }}
-                  onDragLeave={() => setDragOver(null)}
-                  onDrop={() => {
-                    if (dragSrc === null || dragSrc === ri) { setDragOver(null); return; }
-                    const newRoutine = JSON.parse(JSON.stringify(routine));
-                    const [moved] = newRoutine.splice(dragSrc, 1);
-                    newRoutine.splice(ri, 0, moved);
-                    newRoutine.forEach((d, i) => d.day = DEFAULT_ROUTINE[i].day);
-                    setRoutine(newRoutine);
-                    setDragSrc(null);
-                    setDragOver(null);
-                    showToast("Rutina reordenada");
-                  }}
-                  style={{ background: dragOver === ri ? "rgba(245,158,11,0.1)" : "#1c2840", borderRadius: 14, padding: "12px 14px", marginBottom: 8, border: dragOver === ri ? "1.5px solid #f59e0b" : "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", gap: 10, cursor: "grab" }}>
-                  <div style={{ color: "#475569", fontSize: 16, flexShrink: 0 }}>⠿</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "#f9fafb" }}>{r.label}</div>
-                    <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{r.day} · {r.sub}</div>
-                  </div>
-                  {!r.rest && <button onClick={() => setEditingSession(ri)} style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", color: "#94a3b8", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✎</button>}
-                  <button onClick={() => {
-                    if (window.confirm("¿Eliminar " + r.label + " y convertir en descanso?")) {
-                      const newRoutine = JSON.parse(JSON.stringify(routine));
-                      newRoutine[ri] = { day: r.day, label: "Descanso", sub: "Sin entrenamiento", duration: "Recuperación", rest: true, blocks: [] };
-                      setRoutine(newRoutine);
-                      showToast(r.label + " eliminada");
-                    }
-                  }} style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)", color: "#f87171", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✕</button>
-                </div>
-              ))}
-
-              <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, margin: "16px 0 8px" }}>Mis plantillas</div>
-              {templates.length === 0 ? (
-                <div style={{ background: "#1c2840", borderRadius: 14, padding: "20px 16px", textAlign: "center", border: "1.5px dashed rgba(255,255,255,0.1)" }}>
-                  <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10 }}>No tienes plantillas creadas</div>
-                  <button onClick={() => setEditingTemplate({})} style={{ padding: "8px 18px", borderRadius: 10, border: "none", background: "rgba(245,158,11,0.15)", color: "#f59e0b", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Crear primera plantilla</button>
-                </div>
-              ) : (
-                templates.map(t => (
-                  <div key={t.id} style={{ background: "#1c2840", borderRadius: 14, padding: "12px 14px", marginBottom: 8, border: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: "#f9fafb" }}>{t.label}</div>
-                      <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{t.sub}{t.duration ? " · " + t.duration : ""}</div>
-                    </div>
-                    <button onClick={() => setEditingTemplate(t)} style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", color: "#94a3b8", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✎</button>
-                    <button onClick={() => { if (window.confirm("¿Eliminar " + t.label + "?")) deleteTemplate(t.id); }} style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)", color: "#f87171", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✕</button>
-                  </div>
-                ))
-              )}
-            </div>
           </div>
         )}
 
@@ -1667,7 +1627,7 @@ export default function App() {
 
       {detailExercise && <ExerciseDetailPanel exercise={detailExercise} sessions={data.sessions} onClose={() => setDetailExercise(null)} onLog={openLog} />}
       {editingTemplate !== null && <TemplateEditorPanel template={editingTemplate} onSave={saveTemplate} onDelete={deleteTemplate} onClose={() => setEditingTemplate(null)} />}
-      {editingSession !== null && <SessionEditPanel sessionIdx={editingSession} day={routine[editingSession]} onSave={updatedDay => { const r = JSON.parse(JSON.stringify(routine)); r[editingSession] = updatedDay; setRoutine(r); setEditingSession(null); showToast("Sesión actualizada"); }} onClose={() => setEditingSession(null)} />}
+      {editingSession !== null && <SessionEditPanel sessionIdx={editingSession} day={routine[editingSession]} onSave={updatedDay => { const r = JSON.parse(JSON.stringify(routine)); r[editingSession] = updatedDay; setRoutine(r); setEditingSession(null); showToast("Sesión actualizada"); }} onDelete={() => { if (window.confirm("¿Eliminar esta sesión y convertir en descanso?")) { const r = JSON.parse(JSON.stringify(routine)); r[editingSession] = { day: routine[editingSession].day, label: "Descanso", sub: "Sin entrenamiento", duration: "Recuperación", rest: true, blocks: [] }; setRoutine(r); setEditingSession(null); showToast("Sesión eliminada"); } }} onClose={() => setEditingSession(null)} />}
 
       {toast && (
         <div style={{ position: "fixed", bottom: 100, left: "50%", transform: "translateX(-50%)", background: "#111827", color: "#fff", borderRadius: 12, padding: "12px 22px", fontSize: 14, fontWeight: 600, zIndex: 999, animation: "toastFade 2.2s ease forwards", whiteSpace: "nowrap" }}>
